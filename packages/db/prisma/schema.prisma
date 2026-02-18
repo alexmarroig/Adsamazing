@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String             @id @default(uuid())
+  email             String             @unique
+  createdAt         DateTime           @default(now()) @map("created_at")
+  googleConnections GoogleConnection[]
+  adAccounts        AdAccount[]
+  syncRuns          SyncRun[]
+
+  @@map("users")
+}
+
+model GoogleConnection {
+  id                    String   @id @default(uuid())
+  userId                String   @map("user_id")
+  provider              String
+  accessTokenEncrypted  String   @map("access_token_encrypted")
+  refreshTokenEncrypted String   @map("refresh_token_encrypted")
+  expiresAt             DateTime @map("expires_at")
+  scope                 String
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("google_connections")
+}
+
+model AdAccount {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  customerId String   @map("customer_id")
+  name       String
+  currency   String
+  timezone   String
+  createdAt  DateTime @default(now()) @map("created_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncRuns   SyncRun[]
+
+  @@map("ad_accounts")
+}
+
+model SyncRun {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  adAccountId String    @map("ad_account_id")
+  status      String
+  startedAt   DateTime  @default(now()) @map("started_at")
+  finishedAt  DateTime? @map("finished_at")
+  error       String?
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  adAccount   AdAccount @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
+
+  @@map("sync_runs")
+}
