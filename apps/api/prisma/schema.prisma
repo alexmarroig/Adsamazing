@@ -1,0 +1,33 @@
+// Schema básico de referência para o módulo de API.
+// No monorepo atual, o client utilizado em runtime vem de packages/db/prisma/schema.prisma.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String             @id @default(uuid())
+  email             String             @unique
+  createdAt         DateTime           @default(now())
+  googleConnections GoogleConnection[]
+}
+
+model GoogleConnection {
+  id                    String   @id @default(uuid())
+  userId                String
+  provider              String
+  accessTokenEncrypted  String
+  refreshTokenEncrypted String
+  expiresAt             DateTime
+  scope                 String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+}
