@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '@ads/db';
 
 import { env } from '../plugins/env.js';
 import { encrypt } from '../util/crypto.js';

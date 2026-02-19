@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '@ads/db';
 
 import { decrypt } from '../util/crypto.js';
 import { getGoogleAdsAccessToken, listAccessibleCustomers } from '../util/googleAds.js';
