@@ -102,3 +102,12 @@ Schema Prisma em `packages/db/prisma/schema.prisma` com tabelas:
 - `sync_runs`
 
 Em produção, basta apontar `DATABASE_URL` para Supabase Postgres.
+
+## Deploy no Railway
+
+Para evitar fallback para `npm` em monorepo, este repositório inclui `pnpm-lock.yaml` e `railway.toml`.
+
+- Build Command: `corepack enable && pnpm install && pnpm --filter @ads/api... build`
+- Start Command: `pnpm --filter @ads/api start`
+
+O filtro `@ads/api...` garante build da API e dos pacotes de workspace dependentes (ex.: `@ads/db`).
