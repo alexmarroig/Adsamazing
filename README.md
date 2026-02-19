@@ -102,24 +102,3 @@ Schema Prisma em `packages/db/prisma/schema.prisma` com tabelas:
 - `sync_runs`
 
 Em produção, basta apontar `DATABASE_URL` para Supabase Postgres.
-
-## Deploy no Railway (correção para `ERR_UNKNOWN_FILE_EXTENSION`)
-
-Se o Railway subir direto com `node dist/index.js` sem build de workspace, ele pode tentar carregar `packages/shared/src/index.ts` em runtime e quebrar com:
-
-```txt
-TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /app/packages/shared/src/index.ts
-```
-
-Este repositório já está ajustado para evitar isso:
-
-- `@ads/shared` e `@ads/db` agora publicam `main/types/exports` apontando para `dist`.
-- `apps/api` e `apps/worker` fazem `prebuild` dos pacotes internos.
-- `start` em produção roda `prestart` (build antes de executar `node dist/index.js`).
-
-No Railway, use de preferência:
-
-- **Build Command**: `pnpm --filter @ads/api build`
-- **Start Command**: `pnpm --filter @ads/api start`
-
-E garanta que as variáveis de ambiente estejam definidas.
