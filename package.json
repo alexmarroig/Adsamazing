@@ -1,7 +1,7 @@
 {
   "name": "ads-autopilot",
   "private": true,
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@10.0.0",
   "engines": {
     "node": ">=20.0.0"
   },
@@ -11,7 +11,7 @@
     "lint": "corepack pnpm -r lint",
     "typecheck": "corepack pnpm -r typecheck",
     "format": "prettier --write .",
-    "postinstall": "corepack enable && corepack prepare pnpm@9.15.4 --activate || true",
+    "postinstall": "corepack enable && corepack prepare pnpm@10.0.0 --activate || true",
     "railway:build:api": "corepack pnpm --filter @ads/api... build",
     "railway:start:api": "corepack pnpm --filter @ads/api start",
     "railway:build:worker": "corepack pnpm --filter @ads/worker... build",
