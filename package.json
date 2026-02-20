@@ -6,17 +6,16 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "concurrently -n web,api,worker -c cyan,green,magenta \"pnpm --filter @ads/web dev\" \"pnpm --filter @ads/api dev\" \"pnpm --filter @ads/worker dev\"",
-    "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck",
+    "dev": "concurrently -n web,api,worker -c cyan,green,magenta \"corepack pnpm --filter @ads/web dev\" \"corepack pnpm --filter @ads/api dev\" \"corepack pnpm --filter @ads/worker dev\"",
+    "build": "corepack pnpm -r build",
+    "lint": "corepack pnpm -r lint",
+    "typecheck": "corepack pnpm -r typecheck",
     "format": "prettier --write .",
     "postinstall": "corepack enable && corepack prepare pnpm@9.15.4 --activate || true",
     "railway:build:api": "corepack pnpm --filter @ads/api... build",
     "railway:start:api": "corepack pnpm --filter @ads/api start",
     "railway:build:worker": "corepack pnpm --filter @ads/worker... build",
     "railway:start:worker": "corepack pnpm --filter @ads/worker start"
-    "postinstall": "corepack enable && corepack prepare pnpm@9.15.4 --activate",
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
