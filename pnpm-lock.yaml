@@ -145,6 +145,9 @@ importers:
         specifier: "^6.1.0"
         version: "^6.1.0"
     devDependencies:
+      "@types/node":
+        specifier: "^22.10.2"
+        version: "^22.10.2"
       "prisma":
         specifier: "^6.1.0"
         version: "^6.1.0"
