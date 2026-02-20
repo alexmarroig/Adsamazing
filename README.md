@@ -102,3 +102,23 @@ Schema Prisma em `packages/db/prisma/schema.prisma` com tabelas:
 - `sync_runs`
 
 Em produção, basta apontar `DATABASE_URL` para Supabase Postgres.
+
+## Deploy no Railway
+
+Como o Railpack pode executar `npm install` e **não** deixar `pnpm` no PATH, use comandos via `npm run` que já encapsulam `corepack pnpm`.
+
+Configure com Root Directory na raiz (`/`) e dois services separados.
+
+API service:
+
+- Build Command: `npm run railway:build:api`
+- Start Command: `npm run railway:start:api`
+
+Worker service:
+
+- Build Command: `npm run railway:build:worker`
+- Start Command: `npm run railway:start:worker`
+
+Esses scripts estão no `package.json` da raiz e executam `corepack pnpm --filter ...`, evitando o erro `pnpm: not found`.
+
+Se ainda falhar, faça redeploy com *Clear build cache*.
