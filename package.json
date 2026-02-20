@@ -11,7 +11,7 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "format": "prettier --write .",
-    "postinstall": "corepack enable && corepack prepare pnpm@9.15.4 --activate || true"
+    "postinstall": "corepack enable && corepack prepare pnpm@9.15.4 --activate",
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
