@@ -1,8 +1,7 @@
 [build]
-builder = "NIXPACKS"
-buildCommand = "corepack pnpm --filter @ads/worker build"
+cmd = "corepack enable && pnpm install && pnpm --filter @ads/api... build"
 
 [deploy]
-startCommand = "corepack pnpm --filter @ads/worker start"
+startCommand = "pnpm --filter @ads/api start"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10

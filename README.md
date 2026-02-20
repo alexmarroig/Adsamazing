@@ -105,18 +105,9 @@ Em produção, basta apontar `DATABASE_URL` para Supabase Postgres.
 
 ## Deploy no Railway
 
-Para evitar erro `pnpm: not found` quando o Railpack usa `npm install`, a raiz do projeto executa no `postinstall`:
+Para evitar fallback para `npm` em monorepo, este repositório inclui `pnpm-lock.yaml` e `railway.toml`.
 
-- `corepack enable && corepack prepare pnpm@9.15.4 --activate || true`
-
-Com isso, o comando de build/start pode continuar usando `pnpm` mesmo em serviços que instalam com npm.
-
-Para o serviço do worker:
-
-- Build Command: `pnpm --filter @ads/worker build`
-- Start Command: `pnpm --filter @ads/worker start`
-
-Para o serviço da API:
-
-- Build Command: `pnpm --filter @ads/api... build`
+- Build Command: `corepack enable && pnpm install && pnpm --filter @ads/api... build`
 - Start Command: `pnpm --filter @ads/api start`
+
+O filtro `@ads/api...` garante build da API e dos pacotes de workspace dependentes (ex.: `@ads/db`).

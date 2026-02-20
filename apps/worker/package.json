@@ -11,7 +11,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@ads/shared": "workspace:*",
+    "@ads/shared": "file:../../packages/shared",
     "bullmq": "^5.34.4",
     "dotenv": "^16.4.7",
     "pino": "^9.5.0",
