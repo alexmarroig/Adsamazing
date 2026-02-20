@@ -105,6 +105,20 @@ Em produção, basta apontar `DATABASE_URL` para Supabase Postgres.
 
 ## Deploy no Railway
 
+Para evitar o fallback automático para `npm` (e o erro `pnpm: not found`), este repositório define **`nixpacks.toml`** com as fases explícitas de build:
+
+- setup: instala `nodejs_20` e `pnpm` via Nix
+- install: `pnpm install --frozen-lockfile`
+- build: `pnpm --filter @ads/api... build`
+- start: `pnpm --filter @ads/api start`
+
+> Importante: no painel do Railway, deixe o serviço usar a configuração do repositório. Se Build/Start Command estiverem preenchidos manualmente com `pnpm ...`, eles podem sobrescrever essa config e manter o erro.
+
+Para o worker, use um serviço separado com:
+
+- Build Command: `pnpm --filter @ads/worker build`
+- Start Command: `pnpm --filter @ads/worker start`
+
 Para evitar fallback para `npm` em monorepo, este repositório inclui `pnpm-lock.yaml` e `railway.toml`.
 
 - Build Command: `corepack enable && pnpm install && pnpm --filter @ads/api... build`
