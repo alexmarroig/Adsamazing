@@ -119,3 +119,9 @@ Para o worker, use um serviço separado com:
 - Build Command: `pnpm --filter @ads/worker build`
 - Start Command: `pnpm --filter @ads/worker start`
 
+Para evitar fallback para `npm` em monorepo, este repositório inclui `pnpm-lock.yaml` e `railway.toml`.
+
+- Build Command: `corepack enable && pnpm install && pnpm --filter @ads/api... build`
+- Start Command: `pnpm --filter @ads/api start`
+
+O filtro `@ads/api...` garante build da API e dos pacotes de workspace dependentes (ex.: `@ads/db`).
