@@ -107,7 +107,7 @@ Em produção, basta apontar `DATABASE_URL` para Supabase Postgres.
 
 Para evitar erro `pnpm: not found` quando o Railpack usa `npm install`, a raiz do projeto executa no `postinstall`:
 
-- `corepack enable && corepack prepare pnpm@9.15.4 --activate`
+- `corepack enable && corepack prepare pnpm@9.15.4 --activate || true`
 
 Com isso, o comando de build/start pode continuar usando `pnpm` mesmo em serviços que instalam com npm.
 
