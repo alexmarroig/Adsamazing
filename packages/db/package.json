@@ -17,8 +17,8 @@
   },
   "devDependencies": {
     "prisma": "^6.1.0",
-    "typescript": "^5.7.2",
     "@types/node": "^22.10.2"
+    "typescript": "^5.7.2"
   },
   "exports": {
     ".": {

@@ -16,6 +16,7 @@
     "railway:start:api": "corepack pnpm --filter @ads/api start",
     "railway:build:worker": "corepack pnpm --filter @ads/worker... build",
     "railway:start:worker": "corepack pnpm --filter @ads/worker start"
+    "postinstall": "corepack enable && corepack prepare pnpm@9.15.4 --activate",
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
