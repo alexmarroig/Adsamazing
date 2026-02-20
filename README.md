@@ -102,3 +102,21 @@ Schema Prisma em `packages/db/prisma/schema.prisma` com tabelas:
 - `sync_runs`
 
 Em produção, basta apontar `DATABASE_URL` para Supabase Postgres.
+
+## Deploy no Railway
+
+Para evitar conflito de configuração entre serviços no monorepo, este repositório **não usa `railway.toml`**.
+Configure os comandos diretamente na UI do Railway, com Root Directory na raiz (`/`).
+
+API service:
+
+- Build Command: `pnpm --filter @ads/api... build`
+- Start Command: `pnpm --filter @ads/api start`
+
+Worker service:
+
+- Build Command: `pnpm --filter @ads/worker... build`
+- Start Command: `pnpm --filter @ads/worker start`
+
+Se aparecer cache/config antiga, rode deploy com *Clear build cache*.
+
