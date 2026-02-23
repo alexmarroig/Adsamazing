@@ -6,7 +6,7 @@
   "packageManager": "pnpm@10.0.0",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "npm --prefix ../.. run build --workspace @ads/shared && tsup src/index.ts --format esm,cjs --dts --no-external @ads/shared",
+    "build": "npm --prefix ../.. run build --workspace @ads/shared && tsup src/index.ts --format esm,cjs --dts",
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
