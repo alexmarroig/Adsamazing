@@ -105,27 +105,25 @@ Em produção, basta apontar `DATABASE_URL` para Supabase Postgres.
 
 ## Deploy no Railway
 
-Como o Railpack pode executar `npm install` e **não** deixar `pnpm` no PATH, use comandos via `npm run` que já encapsulam `corepack pnpm`.
+Este repositório fixa `pnpm@10.0.0` no `packageManager` e usa comandos diretos com `pnpm` (sem `corepack enable`).
 
 Configure com Root Directory na raiz (`/`) e dois services separados.
 
 API service:
 
-- Build Command: `npm run railway:build:api`
-- Start Command: `npm run railway:start:api`
+- Build Command: `pnpm --filter @ads/api... build`
+- Start Command: `pnpm --filter @ads/api start`
 
 Worker service:
 
-- Build Command: `npm run railway:build:worker`
-- Start Command: `npm run railway:start:worker`
-
-Esses scripts estão no `package.json` da raiz e executam `corepack pnpm --filter ...`, evitando o erro `pnpm: not found`.
+- Build Command: `pnpm --filter @ads/worker build`
+- Start Command: `pnpm --filter @ads/worker start`
 
 Se ainda falhar, faça redeploy com *Clear build cache*.
 Para evitar o fallback automático para `npm` (e o erro `pnpm: not found`), este repositório define **`nixpacks.toml`** com as fases explícitas de build:
 
 - setup: instala `nodejs_20` e `pnpm` via Nix
-- install: `pnpm install --frozen-lockfile`
+- install: `pnpm install --no-frozen-lockfile`
 - build: `pnpm --filter @ads/api... build`
 - start: `pnpm --filter @ads/api start`
 
@@ -138,7 +136,7 @@ Para o worker, use um serviço separado com:
 
 Para evitar fallback para `npm` em monorepo, este repositório inclui `pnpm-lock.yaml` e `railway.toml`.
 
-- Build Command: `corepack enable && pnpm install && pnpm --filter @ads/api... build`
+- Build Command: `pnpm --filter @ads/api... build`
 - Start Command: `pnpm --filter @ads/api start`
 
 O filtro `@ads/api...` garante build da API e dos pacotes de workspace dependentes (ex.: `@ads/db`).
