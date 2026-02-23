@@ -1,18 +1,19 @@
 /**
- * Centralized frontend config values.
+ * Shared frontend configuration.
  *
- * Replace NEXT_PUBLIC_BACKEND_URL in your environment with your real Railway backend URL.
- * Example: NEXT_PUBLIC_BACKEND_URL=https://my-backend-production.up.railway.app
+ * We keep all backend URLs in one place so pages/components
+ * don't hard-code endpoints directly.
  */
 export const BACKEND_BASE_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || 'https://<YOUR_BACKEND_URL>';
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  'https://adsapi-production.up.railway.app';
 
 /**
- * Builds the backend OAuth start URL.
+ * URL that starts the Google OAuth flow on the backend.
  */
 export const GOOGLE_OAUTH_START_URL = `${BACKEND_BASE_URL}/v1/google/oauth/start`;
 
 /**
- * Backend endpoint to verify Google Ads access after OAuth succeeds.
+ * URL used to test Google Ads access after OAuth.
  */
 export const GOOGLE_ADS_TEST_URL = `${BACKEND_BASE_URL}/v1/google/ads/test`;
