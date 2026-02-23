@@ -1,39 +1,21 @@
 {
-  "name": "ads-autopilot",
+  "name": "google-oauth-frontend",
   "private": true,
-  "packageManager": "pnpm@10.0.0",
-  "engines": {
-    "node": ">=20.0.0"
-  },
+  "version": "1.0.0",
   "scripts": {
-    "dev": "concurrently -n web,api,worker -c cyan,green,magenta \"corepack pnpm --filter @ads/web dev\" \"corepack pnpm --filter @ads/api dev\" \"corepack pnpm --filter @ads/worker dev\"",
-    "build": "corepack pnpm -r build",
-    "lint": "corepack pnpm -r lint",
-    "typecheck": "corepack pnpm -r typecheck",
-    "format": "prettier --write .",
-    "postinstall": "corepack enable && corepack prepare pnpm@10.0.0 --activate || true",
-    "railway:build:api": "corepack pnpm --filter @ads/api... build",
-    "railway:start:api": "corepack pnpm --filter @ads/api start",
-    "railway:build:worker": "corepack pnpm --filter @ads/worker... build",
-    "railway:start:worker": "corepack pnpm --filter @ads/worker start"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "14.2.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   },
   "devDependencies": {
-    "@types/node": "^22.10.2",
-    "concurrently": "^9.1.0",
-    "eslint": "^8.57.1",
-    "eslint-config-prettier": "^9.1.0",
-    "prettier": "^3.4.2",
-    "typescript": "^5.7.2"
-  },
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@prisma/client",
-      "@prisma/engines",
-      "prisma"
-    ]
+    "@types/node": "22.10.2",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "typescript": "5.7.2"
   }
 }
