@@ -2,14 +2,10 @@
 nixPkgs = ["nodejs_20", "pnpm"]
 
 [phases.install]
-cmds = [
-  "pnpm install --no-frozen-lockfile"
-]
+cmds = ["pnpm install --no-frozen-lockfile"]
 
 [phases.build]
-cmds = [
-  "pnpm --filter @ads/api... build"
-]
+cmds = ["pnpm --filter @ads/api... build"]
 
 [start]
 cmd = "pnpm --filter @ads/api start"
