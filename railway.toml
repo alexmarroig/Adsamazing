@@ -1,6 +1,6 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "corepack enable && pnpm install && pnpm --filter @ads/api... build"
+buildCommand = "pnpm --filter @ads/api... build"
 
 [deploy]
 startCommand = "pnpm --filter @ads/api start"
