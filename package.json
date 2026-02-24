@@ -22,7 +22,7 @@
   },
   "packageManager": "pnpm@10.0.0",
   "engines": {
-    "node": ">=20 <23"
+    "node": ">=20"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
