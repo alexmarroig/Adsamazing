@@ -13,10 +13,10 @@ cmds = [
 
 [phases.build]
 cmds = [
-  "pnpm --filter @ads/shared build || true",
-  "pnpm --filter @ads/api build || true",
-  "pnpm --filter @ads/worker build || true",
-  "pnpm --filter @ads/web build || true"
+"pnpm --filter @ads/shared build",
+"pnpm --filter @ads/api build",
+"pnpm --filter @ads/worker build",
+"pnpm --filter @ads/web build"
 ]
 
 # NÃO DEFINA START AQUI
