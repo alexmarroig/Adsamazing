@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { prisma } from '@ads/db';
 
 import { decrypt } from '../util/crypto.js';
-import { getGoogleAdsAccessToken, listAccessibleCustomers } from '../util/googleAds.js';
+import { getGoogleAdsAccessToken, listAccessibleCustomers, searchGoogleAds } from '../util/googleAds.js';
 
 const headerSchema = z.object({
   'x-user-id': z.string().uuid(),
@@ -41,6 +41,56 @@ export const googleAdsRoutes: FastifyPluginAsync = async (app) => {
     } catch (error) {
       app.log.error({ err: error }, 'Erro ao consultar Google Ads');
       return reply.code(500).send({ message: 'Erro interno ao consultar Google Ads API.' });
+    }
+  });
+
+  app.get('/metrics', async (request, reply) => {
+    const parsedHeaders = headerSchema.safeParse(request.headers);
+    if (!parsedHeaders.success) {
+      return reply.code(400).send({ message: 'Header x-user-id (uuid) é obrigatório.' });
+    }
+
+    const userId = parsedHeaders.data['x-user-id'];
+    const { customerId } = request.query as { customerId: string };
+
+    if (!customerId) {
+      return reply.code(400).send({ message: 'Query param customerId é obrigatório.' });
+    }
+
+    try {
+      const connection = await prisma.googleConnection.findFirst({
+        where: { userId, provider: 'google' },
+        select: { refreshTokenEncrypted: true },
+      });
+
+      if (!connection) {
+        return reply.code(404).send({ message: 'Nenhuma conexão Google encontrada.' });
+      }
+
+      const refreshToken = decrypt(connection.refreshTokenEncrypted);
+      const accessToken = await getGoogleAdsAccessToken(refreshToken);
+
+      // Busca métricas agregadas dos últimos 30 dias
+      const query = `
+        SELECT
+          metrics.impressions,
+          metrics.clicks,
+          metrics.cost_micros,
+          metrics.conversions,
+          metrics.conversions_value
+        FROM customer
+        WHERE segments.date DURING LAST_30_DAYS
+      `;
+
+      const results = await searchGoogleAds(accessToken, customerId, query);
+
+      return reply.send({
+        message: 'Métricas obtidas com sucesso.',
+        data: results.results?.[0] || {},
+      });
+    } catch (error) {
+      app.log.error({ err: error }, 'Erro ao buscar métricas');
+      return reply.code(500).send({ message: 'Erro ao buscar métricas no Google Ads.' });
     }
   });
 };

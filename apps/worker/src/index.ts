@@ -10,16 +10,33 @@ const logger = pino({
 
 const connection = { url: env.REDIS_URL };
 const queueName = 'sync_metrics';
+const automationQueueName = 'automation_rules';
 
 const queue = new Queue(queueName, { connection });
+const automationQueue = new Queue(automationQueueName, { connection });
+
 const queueEvents = new QueueEvents(queueName, { connection });
 
 const worker = new Worker(
   queueName,
   async (job) => {
     logger.info({ jobId: job.id, name: job.name, userId: job.data.userId }, 'Processing sync_metrics job');
-
+    // Aqui entraria a lógica de buscar dados do Google Ads e salvar no DB
     return { processedAt: new Date().toISOString() };
+  },
+  { connection },
+);
+
+const automationWorker = new Worker(
+  automationQueueName,
+  async (job) => {
+    logger.info({ jobId: job.id, name: job.name }, 'Checking automation rules');
+
+    // Simulação de verificação de regras
+    // No mundo real, buscaríamos as regras do banco e os dados mais recentes do Google Ads
+    // Se a condição fosse atingida, dispararíamos o ajuste via API do Google Ads
+
+    return { executed: true, timestamp: new Date().toISOString() };
   },
   { connection },
 );
@@ -48,7 +65,16 @@ const schedule = async (): Promise<void> => {
     },
   );
 
-  logger.info('Scheduler configured for sync_metrics queue');
+  await automationQueue.upsertJobScheduler(
+    'check-automation-rules-every-5-minutes',
+    { pattern: '*/5 * * * *' },
+    {
+      name: 'automation-rules-job',
+      data: {},
+    }
+  );
+
+  logger.info('Schedulers configured for metrics and automation queues');
 };
 
 const shutdown = async (): Promise<void> => {

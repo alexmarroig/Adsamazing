@@ -61,3 +61,33 @@ model SyncRun {
 
   @@map("sync_runs")
 }
+
+model AutomationRule {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  adAccountId  String   @map("ad_account_id")
+  name         String
+  metric       String   // e.g., "cost_per_conversion", "ctr"
+  operator     String   // e.g., ">", "<"
+  value        Float
+  action       String   // e.g., "pause_ad", "adjust_bid"
+  actionValue  Float?   @map("action_value")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  logs         AutomationLog[]
+
+  @@map("automation_rules")
+}
+
+model AutomationLog {
+  id               String         @id @default(uuid())
+  automationRuleId String         @map("automation_rule_id")
+  status           String
+  message          String
+  executedAt       DateTime       @default(now()) @map("executed_at")
+  automationRule   AutomationRule @relation(fields: [automationRuleId], references: [id], onDelete: Cascade)
+
+  @@map("automation_logs")
+}
