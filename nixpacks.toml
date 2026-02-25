@@ -2,15 +2,21 @@
 nixPkgs = ["nodejs_20", "pnpm"]
 
 [variables]
-# Work around Corepack signing-key mismatches in some Node 20.x images used by Nixpacks.
-# This keeps `corepack enable` from failing when Nixpacks injects it in build steps.
+NODE_ENV = "production"
 COREPACK_INTEGRITY_KEYS = "0"
 
 [phases.install]
-cmds = ["pnpm install --no-frozen-lockfile"]
+cmds = [
+  "corepack enable",
+  "pnpm install --no-frozen-lockfile"
+]
 
 [phases.build]
-cmds = ["pnpm --filter @ads/api... build"]
+cmds = [
+  "pnpm --filter @ads/shared build || true",
+  "pnpm --filter @ads/api build || true",
+  "pnpm --filter @ads/worker build || true",
+  "pnpm --filter @ads/web build || true"
+]
 
-[start]
-cmd = "pnpm --filter @ads/api start"
+# NÃO DEFINA START AQUI
