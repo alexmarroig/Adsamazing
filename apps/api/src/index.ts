@@ -4,22 +4,25 @@ import { env } from './plugins/env.js';
 import { googleAdsRoutes } from './routes/googleAds.js';
 import { oauthRoutes } from './routes/oauth.js';
 
-const app = Fastify({
-  logger: {
-    level: env.NODE_ENV === 'production' ? 'info' : 'debug',
-    transport:
-      env.NODE_ENV === 'production'
-        ? undefined
-        : {
-            target: 'pino-pretty',
-            options: {
-              colorize: true,
-              translateTime: 'HH:MM:ss Z',
-              ignore: 'pid,hostname',
-            },
-          },
-  },
-});
+const isProduction = process.env.NODE_ENV === 'production';
+
+const logger = isProduction
+  ? {
+      level: 'info',
+    }
+  : {
+      level: 'debug',
+      transport: {
+        target: 'pino-pretty',
+        options: {
+          colorize: true,
+          translateTime: 'HH:MM:ss Z',
+          ignore: 'pid,hostname',
+        },
+      },
+    };
+
+const app = Fastify({ logger });
 
 app.get('/health', async () => {
   return {
