@@ -3,6 +3,7 @@ import Fastify from 'fastify';
 import { env } from './plugins/env.js';
 import { googleAdsRoutes } from './routes/googleAds.js';
 import { oauthRoutes } from './routes/oauth.js';
+import { aiRoutes } from './routes/ai.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -33,6 +34,7 @@ app.get('/health', async () => {
 
 app.register(oauthRoutes, { prefix: '/v1/google/oauth' });
 app.register(googleAdsRoutes, { prefix: '/v1/google/ads' });
+app.register(aiRoutes, { prefix: '/v1/ai' });
 
 const start = async (): Promise<void> => {
   try {

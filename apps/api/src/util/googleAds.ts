@@ -71,3 +71,32 @@ export async function listAccessibleCustomers(accessToken: string): Promise<unkn
 
   return response.json();
 }
+
+/**
+ * Executa uma busca GAQL (Google Ads Query Language).
+ */
+export async function searchGoogleAds(
+  accessToken: string,
+  customerId: string,
+  query: string
+): Promise<any> {
+  const response = await fetch(
+    `https://googleads.googleapis.com/v18/customers/${customerId}/googleAds:search`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'developer-token': env.GOOGLE_DEVELOPER_TOKEN,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Google Ads Search Error: ${response.status} - ${errorBody}`);
+  }
+
+  return response.json();
+}

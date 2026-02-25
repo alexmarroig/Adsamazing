@@ -22,6 +22,7 @@ const envSchema = z.object({
   GOOGLE_DEVELOPER_TOKEN: z.string().min(1),
   GOOGLE_OAUTH_SCOPES: z.string().min(1),
   ENCRYPTION_KEY: z.string().min(1),
+  OPENAI_API_KEY: z.string().min(1),
 });
 
 export const env = envSchema.parse(process.env);
