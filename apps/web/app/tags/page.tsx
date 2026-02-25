@@ -89,7 +89,7 @@ export default function TagsPage() {
                 </div>
                 <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm text-blue-100 flex gap-3">
                   <AlertTriangle className="w-5 h-5 text-blue-400 shrink-0" />
-                  <p>Dica: No Wix, use a seção "Ferramentas de Marketing" , "Google Ads" para integração automática sem código.</p>
+                  <p>Dica: No Wix, use a seção "Ferramentas de Marketing" {'>'} "Google Ads" para integração automática sem código.</p>
                 </div>
               </div>
             )}
