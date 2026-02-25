@@ -23,6 +23,7 @@ export const googleAdsRoutes: FastifyPluginAsync = async (app) => {
     try {
       const connection = await prisma.googleConnection.findFirst({
         where: { userId, provider: 'google' },
+        select: { refreshTokenEncrypted: true },
       });
 
       if (!connection) {
