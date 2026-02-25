@@ -1,7 +1,2 @@
 [build]
 builder = "NIXPACKS"
-
-[deploy]
-startCommand = "pnpm --filter @ads/api start"
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 10
