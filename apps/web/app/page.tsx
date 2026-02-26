@@ -5,7 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { motion } from 'framer-motion';
 
+const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+const GOOGLE_OAUTH_START_URL = `${BACKEND_BASE_URL}/v1/google/oauth/start`;
+
 export default function LoginPage() {
+  const handleGoogleLogin = () => {
+    window.location.href = GOOGLE_OAUTH_START_URL;
+  };
+
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#09090b] px-6">
       {/* Background decorations */}
@@ -45,7 +52,11 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-4">
-            <Button className="w-full bg-blue-600 text-white hover:bg-blue-700 neon-blue h-12 text-base font-bold">
+            <Button
+              type="button"
+              onClick={handleGoogleLogin}
+              className="w-full bg-blue-600 text-white hover:bg-blue-700 neon-blue h-12 text-base font-bold"
+            >
               Entrar com Google
             </Button>
             <Link href="/dashboard" className="block">
