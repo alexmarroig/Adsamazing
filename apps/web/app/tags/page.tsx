@@ -56,7 +56,7 @@ export default function TagsPage() {
           <CardContent>
             {step === 1 && (
               <div className="space-y-4">
-                <p className="text-sm text-zinc-400">Copie este código e cole na seção <code className="text-blue-400">&lt;head&gt;</code> de todas as páginas do seu site.</p>
+                <p className="text-sm text-zinc-400">Copie este código e cole na seção <code className="text-blue-400">&lt;head{'>'}</code> de todas as páginas do seu site.</p>
                 <div className="relative group">
                   <pre className="p-4 rounded-lg bg-black/40 border border-white/10 text-xs text-blue-300 overflow-x-auto">
 {`<!-- Google tag (gtag.js) -->
@@ -89,7 +89,7 @@ export default function TagsPage() {
                 </div>
                 <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm text-blue-100 flex gap-3">
                   <AlertTriangle className="w-5 h-5 text-blue-400 shrink-0" />
-                  <p>Dica: No Wix, use a seção "Ferramentas de Marketing" &gt; "Google Ads" para integração automática sem código.</p>
+                  <p>Dica: No Wix, use a seção "Ferramentas de Marketing" {'>'} "Google Ads" para integração automática sem código.</p>
                 </div>
               </div>
             )}
