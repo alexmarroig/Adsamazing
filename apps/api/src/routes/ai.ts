@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { generateKeywordSuggestions, analyzeLandingPageSEO, generateAdImage } from '../util/ai.js';
+import { AiConfigurationError, generateKeywordSuggestions, analyzeLandingPageSEO, generateAdImage } from '../util/ai.js';
 
 const keywordSchema = z.object({
   niche: z.string().min(1),
@@ -24,6 +24,9 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
       return reply.send({ data: suggestions });
     } catch (error) {
       app.log.error({ err: error }, 'Erro ao gerar sugestões de palavras-chave');
+      if (error instanceof AiConfigurationError) {
+        return reply.code(503).send({ message: 'OPENAI_API_KEY não configurada no servidor.' });
+      }
       return reply.code(500).send({ message: 'Erro ao gerar sugestões de IA.' });
     }
   });
@@ -35,6 +38,9 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
       return reply.send({ data: analysis });
     } catch (error) {
       app.log.error({ err: error }, 'Erro ao analisar SEO');
+      if (error instanceof AiConfigurationError) {
+        return reply.code(503).send({ message: 'OPENAI_API_KEY não configurada no servidor.' });
+      }
       return reply.code(500).send({ message: 'Erro ao analisar SEO com IA.' });
     }
   });
@@ -46,6 +52,9 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
       return reply.send({ data: { url: imageUrl } });
     } catch (error) {
       app.log.error({ err: error }, 'Erro ao gerar imagem');
+      if (error instanceof AiConfigurationError) {
+        return reply.code(503).send({ message: 'OPENAI_API_KEY não configurada no servidor.' });
+      }
       return reply.code(500).send({ message: 'Erro ao gerar imagem com IA.' });
     }
   });

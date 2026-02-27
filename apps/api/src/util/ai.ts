@@ -1,11 +1,25 @@
 import OpenAI from 'openai';
 import { env } from '../plugins/env.js';
 
-const openai = new OpenAI({
-  apiKey: env.OPENAI_API_KEY,
-});
+export class AiConfigurationError extends Error {
+  constructor() {
+    super('OPENAI_API_KEY is not configured.');
+    this.name = 'AiConfigurationError';
+  }
+}
+
+function getOpenAIClient() {
+  if (!env.OPENAI_API_KEY) {
+    throw new AiConfigurationError();
+  }
+
+  return new OpenAI({
+    apiKey: env.OPENAI_API_KEY,
+  });
+}
 
 export async function generateKeywordSuggestions(niche: string, goals: string) {
+  const openai = getOpenAIClient();
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
     messages: [
@@ -25,6 +39,7 @@ export async function generateKeywordSuggestions(niche: string, goals: string) {
 }
 
 export async function analyzeLandingPageSEO(url: string) {
+    const openai = getOpenAIClient();
     // Em um cenário real, poderíamos dar fetch na URL.
     // Aqui vamos simular a análise baseada na URL e descrição.
     const response = await openai.chat.completions.create({
@@ -46,6 +61,7 @@ export async function analyzeLandingPageSEO(url: string) {
   }
 
 export async function generateAdImage(prompt: string, size: '1024x1024' | '1024x1792' | '1792x1024' = '1024x1024') {
+  const openai = getOpenAIClient();
   const response = await openai.images.generate({
     model: 'dall-e-3',
     prompt: `Uma imagem profissional para anúncio do Google: ${prompt}. Estilo comercial, alta qualidade, iluminação limpa.`,
