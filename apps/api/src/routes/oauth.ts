@@ -1,23 +1,21 @@
-import type { FastifyPluginAsync } from 'fastify';
+﻿import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
 import { prisma } from '@ads/db';
 
 import { env } from '../plugins/env.js';
 import { encrypt } from '../util/crypto.js';
+import { sendError, sendOk } from '../utils/response.js';
 
 const callbackQuerySchema = z.object({
   code: z.string().min(1),
-});
-
-const headerSchema = z.object({
-  'x-user-id': z.string().uuid(),
-  'x-user-email': z.string().email().optional(),
+  state: z.string().min(1),
 });
 
 export const oauthRoutes: FastifyPluginAsync = async (app) => {
-  // 1) Redireciona para o Google OAuth consent screen.
-  app.get('/start', async (_request, reply) => {
+  app.get('/start', { preHandler: [app.requireAuth] }, async (request, reply) => {
+    const state = Buffer.from(JSON.stringify({ userId: request.authUser.userId, ts: Date.now() })).toString('base64url');
+
     const params = new URLSearchParams({
       client_id: env.GOOGLE_CLIENT_ID,
       redirect_uri: env.GOOGLE_REDIRECT_URI,
@@ -25,31 +23,36 @@ export const oauthRoutes: FastifyPluginAsync = async (app) => {
       scope: env.GOOGLE_OAUTH_SCOPES,
       access_type: 'offline',
       prompt: 'consent',
+      state,
+      include_granted_scopes: 'true',
     });
 
-    return reply.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+    return sendOk(reply, request, {
+      url: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`,
+      state,
+    });
   });
 
-  // 2) Recebe callback, troca code por token e salva refresh_token criptografado.
   app.get('/callback', async (request, reply) => {
     const parsedQuery = callbackQuerySchema.safeParse(request.query);
     if (!parsedQuery.success) {
-      return reply.code(400).send({ message: 'Query param "code" é obrigatório.' });
+      return sendError(reply, request, 400, { code: 'INVALID_QUERY', message: 'code e state são obrigatórios.' });
     }
 
-    const parsedHeaders = headerSchema.safeParse(request.headers);
-    if (!parsedHeaders.success) {
-      return reply
-        .code(400)
-        .send({ message: 'Headers x-user-id (uuid) e opcional x-user-email são necessários.' });
+    let stateData: { userId: string; ts: number };
+    try {
+      stateData = JSON.parse(Buffer.from(parsedQuery.data.state, 'base64url').toString('utf8')) as {
+        userId: string;
+        ts: number;
+      };
+    } catch {
+      return sendError(reply, request, 400, { code: 'INVALID_STATE', message: 'state inválido.' });
     }
 
     try {
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           code: parsedQuery.data.code,
           client_id: env.GOOGLE_CLIENT_ID,
@@ -60,9 +63,7 @@ export const oauthRoutes: FastifyPluginAsync = async (app) => {
       });
 
       if (!tokenResponse.ok) {
-        const errorBody = await tokenResponse.text();
-        app.log.error({ errorBody }, 'Erro no token endpoint do Google OAuth');
-        return reply.code(502).send({ message: 'Falha ao trocar code por tokens.' });
+        return sendError(reply, request, 502, { code: 'GOOGLE_TOKEN_EXCHANGE_FAILED', message: 'Falha ao trocar authorization code.' });
       }
 
       const tokenPayload = (await tokenResponse.json()) as {
@@ -70,55 +71,76 @@ export const oauthRoutes: FastifyPluginAsync = async (app) => {
         refresh_token?: string;
         expires_in?: number;
         scope?: string;
+        id_token?: string;
       };
 
       if (!tokenPayload.refresh_token || !tokenPayload.access_token) {
-        return reply
-          .code(400)
-          .send({ message: 'Google não retornou refresh_token/access_token. Tente consent novamente.' });
+        return sendError(reply, request, 400, {
+          code: 'MISSING_REFRESH_TOKEN',
+          message: 'Google não retornou refresh_token. Refazer consentimento.',
+        });
       }
 
-      const userId = parsedHeaders.data['x-user-id'];
-      const userEmail = parsedHeaders.data['x-user-email'] ?? `${userId}@placeholder.local`;
+      const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${tokenPayload.access_token}` },
+      });
 
-      await prisma.user.upsert({
-        where: { id: userId },
-        update: { email: userEmail },
-        create: { id: userId, email: userEmail },
+      if (!userInfoResponse.ok) {
+        return sendError(reply, request, 502, { code: 'GOOGLE_USERINFO_FAILED', message: 'Falha ao obter perfil Google.' });
+      }
+
+      const userInfo = (await userInfoResponse.json()) as { sub?: string; email?: string };
+      if (!userInfo.sub || !userInfo.email) {
+        return sendError(reply, request, 502, { code: 'GOOGLE_USERINFO_INVALID', message: 'Resposta de perfil inválida.' });
+      }
+
+      const user = await prisma.user.upsert({
+        where: { id: stateData.userId },
+        update: { email: userInfo.email },
+        create: { id: stateData.userId, email: userInfo.email },
       });
 
       const expiresAt = new Date(Date.now() + (tokenPayload.expires_in ?? 3600) * 1000);
 
-      const existingConnection = await prisma.googleConnection.findFirst({
-        where: { userId, provider: 'google' },
+      await prisma.googleAccount.upsert({
+        where: {
+          userId_googleSub: {
+            userId: user.id,
+            googleSub: userInfo.sub,
+          },
+        },
+        update: {
+          email: userInfo.email,
+          accessTokenEncrypted: encrypt(tokenPayload.access_token),
+          refreshTokenEncrypted: encrypt(tokenPayload.refresh_token),
+          tokenExpiresAt: expiresAt,
+          scopes: tokenPayload.scope ?? env.GOOGLE_OAUTH_SCOPES,
+        },
+        create: {
+          userId: user.id,
+          googleSub: userInfo.sub,
+          email: userInfo.email,
+          accessTokenEncrypted: encrypt(tokenPayload.access_token),
+          refreshTokenEncrypted: encrypt(tokenPayload.refresh_token),
+          tokenExpiresAt: expiresAt,
+          scopes: tokenPayload.scope ?? env.GOOGLE_OAUTH_SCOPES,
+        },
       });
 
-      const payload = {
-        accessTokenEncrypted: encrypt(tokenPayload.access_token),
-        refreshTokenEncrypted: encrypt(tokenPayload.refresh_token),
-        expiresAt,
-        scope: tokenPayload.scope ?? env.GOOGLE_OAUTH_SCOPES,
-      };
+      await prisma.oAuthSecret.create({
+        data: {
+          userId: user.id,
+          provider: 'google',
+          keyVersion: 1,
+          secretEncrypted: encrypt(tokenPayload.refresh_token),
+        },
+      });
 
-      if (existingConnection) {
-        await prisma.googleConnection.update({
-          where: { id: existingConnection.id },
-          data: payload,
-        });
-      } else {
-        await prisma.googleConnection.create({
-          data: {
-            userId,
-            provider: 'google',
-            ...payload,
-          },
-        });
-      }
-
-      return reply.send({ message: 'OAuth concluído com sucesso e refresh_token salvo com criptografia.' });
+      return sendOk(reply, request, { message: 'Google OAuth conectado com sucesso.' });
     } catch (error) {
-      app.log.error({ err: error }, 'Erro inesperado no callback OAuth');
-      return reply.code(500).send({ message: 'Erro interno ao processar callback OAuth.' });
+      app.log.error({ err: error }, 'OAuth callback error');
+      return sendError(reply, request, 500, { code: 'OAUTH_CALLBACK_ERROR', message: 'Erro interno no callback OAuth.' });
     }
   });
 };
+

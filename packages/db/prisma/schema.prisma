@@ -1,4 +1,4 @@
-generator client {
+﻿generator client {
   provider = "prisma-client-js"
 }
 
@@ -7,87 +7,387 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum CampaignStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+}
+
+enum MatchType {
+  EXACT
+  PHRASE
+  BROAD
+}
+
 model User {
-  id                String             @id @default(uuid())
-  email             String             @unique
-  createdAt         DateTime           @default(now()) @map("created_at")
-  googleConnections GoogleConnection[]
+  id                String               @id @default(uuid())
+  email             String               @unique
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+  googleAccounts    GoogleAccount[]
   adAccounts        AdAccount[]
-  syncRuns          SyncRun[]
+  products          Product[]
+  campaigns         Campaign[]
+  landingPages      LandingPage[]
+  clicks            Click[]
+  conversions       Conversion[]
+  attributionSessions AttributionSession[]
+  jobs              Job[]
+  auditLogs         AuditLog[]
+  oauthSecrets      OAuthSecret[]
 
   @@map("users")
 }
 
-model GoogleConnection {
-  id                    String   @id @default(uuid())
-  userId                String   @map("user_id")
-  provider              String
-  accessTokenEncrypted  String   @map("access_token_encrypted")
-  refreshTokenEncrypted String   @map("refresh_token_encrypted")
-  expiresAt             DateTime @map("expires_at")
-  scope                 String
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+model GoogleAccount {
+  id                     String      @id @default(uuid())
+  userId                 String      @map("user_id")
+  googleSub              String      @map("google_sub")
+  email                  String
+  refreshTokenEncrypted  String      @map("refresh_token_encrypted")
+  accessTokenEncrypted   String?     @map("access_token_encrypted")
+  tokenExpiresAt         DateTime?   @map("token_expires_at")
+  scopes                 String
+  createdAt              DateTime    @default(now()) @map("created_at")
+  updatedAt              DateTime    @updatedAt @map("updated_at")
+  user                   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  adAccounts             AdAccount[]
 
-  @@unique([userId, provider])
-  @@map("google_connections")
+  @@unique([userId, googleSub])
+  @@index([userId])
+  @@map("google_accounts")
 }
 
 model AdAccount {
-  id         String   @id @default(uuid())
-  userId     String   @map("user_id")
-  customerId String   @map("customer_id")
-  name       String
-  currency   String
-  timezone   String
-  createdAt  DateTime @default(now()) @map("created_at")
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  syncRuns   SyncRun[]
+  id               String      @id @default(uuid())
+  userId           String      @map("user_id")
+  googleAccountId  String      @map("google_account_id")
+  customerId       String      @map("customer_id")
+  managerId        String?     @map("manager_id")
+  name             String
+  currencyCode     String      @map("currency_code")
+  timeZone         String      @map("time_zone")
+  isMcc            Boolean     @default(false) @map("is_mcc")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  googleAccount    GoogleAccount @relation(fields: [googleAccountId], references: [id], onDelete: Cascade)
+  campaigns        Campaign[]
+  attributionSessions AttributionSession[]
 
+  @@unique([userId, customerId])
+  @@index([googleAccountId])
   @@map("ad_accounts")
 }
 
-model SyncRun {
-  id          String    @id @default(uuid())
-  userId      String    @map("user_id")
-  adAccountId String    @map("ad_account_id")
-  status      String
-  startedAt   DateTime  @default(now()) @map("started_at")
-  finishedAt  DateTime? @map("finished_at")
-  error       String?
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  adAccount   AdAccount @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
+model Campaign {
+  id               String        @id @default(uuid())
+  userId           String        @map("user_id")
+  adAccountId      String        @map("ad_account_id")
+  productId        String?       @map("product_id")
+  name             String
+  status           CampaignStatus @default(DRAFT)
+  googleCampaignId String?       @map("google_campaign_id")
+  dailyBudgetMicros BigInt?      @map("daily_budget_micros")
+  objective        String?
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  adAccount        AdAccount     @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
+  product          Product?      @relation(fields: [productId], references: [id], onDelete: SetNull)
+  adGroups         AdGroup[]
+  ads              Ad[]
+  keywords         Keyword[]
+  adExtensions     AdExtension[]
 
-  @@map("sync_runs")
+  @@index([userId, adAccountId])
+  @@map("campaigns")
 }
 
-model AutomationRule {
-  id           String   @id @default(uuid())
-  userId       String   @map("user_id")
-  adAccountId  String   @map("ad_account_id")
-  name         String
-  metric       String   // e.g., "cost_per_conversion", "ctr"
-  operator     String   // e.g., ">", "<"
-  value        Float
-  action       String   // e.g., "pause_ad", "adjust_bid"
-  actionValue  Float?   @map("action_value")
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+model AdGroup {
+  id                String      @id @default(uuid())
+  campaignId        String      @map("campaign_id")
+  userId            String      @map("user_id")
+  name              String
+  googleAdGroupId   String?     @map("google_ad_group_id")
+  cpcBidMicros      BigInt?     @map("cpc_bid_micros")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+  campaign          Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  keywords          Keyword[]
+  ads               Ad[]
 
-  logs         AutomationLog[]
-
-  @@map("automation_rules")
+  @@index([campaignId, userId])
+  @@map("ad_groups")
 }
 
-model AutomationLog {
-  id               String         @id @default(uuid())
-  automationRuleId String         @map("automation_rule_id")
-  status           String
-  message          String
-  executedAt       DateTime       @default(now()) @map("executed_at")
-  automationRule   AutomationRule @relation(fields: [automationRuleId], references: [id], onDelete: Cascade)
+model Keyword {
+  id               String    @id @default(uuid())
+  userId           String    @map("user_id")
+  campaignId       String    @map("campaign_id")
+  adGroupId        String?   @map("ad_group_id")
+  keywordClusterId String?   @map("keyword_cluster_id")
+  text             String
+  matchType        MatchType @default(BROAD) @map("match_type")
+  intent           String?
+  isNegative       Boolean   @default(false) @map("is_negative")
+  qualityScore     Int?      @map("quality_score")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  campaign         Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  adGroup          AdGroup?  @relation(fields: [adGroupId], references: [id], onDelete: SetNull)
+  cluster          KeywordCluster? @relation(fields: [keywordClusterId], references: [id], onDelete: SetNull)
 
-  @@map("automation_logs")
+  @@index([userId, campaignId])
+  @@index([keywordClusterId])
+  @@map("keywords")
 }
+
+model Ad {
+  id                String     @id @default(uuid())
+  userId            String     @map("user_id")
+  campaignId        String     @map("campaign_id")
+  adGroupId         String?    @map("ad_group_id")
+  googleAdId        String?    @map("google_ad_id")
+  headline1         String     @map("headline_1")
+  headline2         String?    @map("headline_2")
+  headline3         String?    @map("headline_3")
+  description1      String     @map("description_1")
+  description2      String?    @map("description_2")
+  finalUrl          String     @map("final_url")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+  campaign          Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  adGroup           AdGroup?   @relation(fields: [adGroupId], references: [id], onDelete: SetNull)
+
+  @@index([userId, campaignId])
+  @@map("ads")
+}
+
+model AffiliateNetwork {
+  id                String      @id @default(uuid())
+  slug              String      @unique
+  name              String
+  isEnabled         Boolean     @default(true) @map("is_enabled")
+  apiBaseUrl        String?     @map("api_base_url")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+  products          Product[]
+
+  @@map("affiliate_networks")
+}
+
+model Product {
+  id                String      @id @default(uuid())
+  userId            String      @map("user_id")
+  affiliateNetworkId String     @map("affiliate_network_id")
+  externalId        String      @map("external_id")
+  title             String
+  category          String?
+  price             Decimal?    @db.Decimal(10, 2)
+  currencyCode      String?     @map("currency_code")
+  commissionPct     Float?      @map("commission_pct")
+  popularityScore   Float?      @map("popularity_score")
+  salesRank         Int?        @map("sales_rank")
+  reviewScore       Float?      @map("review_score")
+  sourceUrl         String?     @map("source_url")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  affiliateNetwork  AffiliateNetwork @relation(fields: [affiliateNetworkId], references: [id], onDelete: Restrict)
+  signals           ProductSignal?
+  campaigns         Campaign[]
+  landingPages      LandingPage[]
+
+  @@unique([userId, affiliateNetworkId, externalId])
+  @@index([userId, category])
+  @@map("products")
+}
+
+model ProductSignal {
+  id                  String   @id @default(uuid())
+  productId           String   @unique @map("product_id")
+  searchDemand        Float    @default(0) @map("search_demand")
+  competitionLevel    Float    @default(0) @map("competition_level")
+  estimatedCpc        Float    @default(0) @map("estimated_cpc")
+  conversionSignal    Float    @default(0) @map("conversion_signal")
+  rankingScore        Float    @default(0) @map("ranking_score")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  product             Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([rankingScore])
+  @@map("product_signals")
+}
+
+model LandingPage {
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  productId         String    @map("product_id")
+  slug              String
+  status            String    @default("draft")
+  title             String
+  jsonBlocks        Json      @map("json_blocks")
+  publishedAt       DateTime? @map("published_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product           Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  clicks            Click[]
+
+  @@unique([userId, slug])
+  @@index([userId, productId])
+  @@map("landing_pages")
+}
+
+model Click {
+  id                   String   @id @default(uuid())
+  userId               String   @map("user_id")
+  landingPageId        String   @map("landing_page_id")
+  attributionSessionId String?  @map("attribution_session_id")
+  source               String?
+  medium               String?
+  campaign             String?
+  term                 String?
+  content              String?
+  ipHash               String?  @map("ip_hash")
+  userAgent            String?  @map("user_agent")
+  createdAt            DateTime @default(now()) @map("created_at")
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  landingPage          LandingPage @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
+  attributionSession   AttributionSession? @relation(fields: [attributionSessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([attributionSessionId])
+  @@map("clicks")
+}
+
+model Conversion {
+  id                   String   @id @default(uuid())
+  userId               String   @map("user_id")
+  attributionSessionId String?  @map("attribution_session_id")
+  clickId              String?  @unique @map("click_id")
+  productId            String?  @map("product_id")
+  value                Decimal? @db.Decimal(10, 2)
+  currencyCode         String?  @map("currency_code")
+  externalOrderId      String?  @map("external_order_id")
+  createdAt            DateTime @default(now()) @map("created_at")
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attributionSession   AttributionSession? @relation(fields: [attributionSessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([attributionSessionId])
+  @@map("conversions")
+}
+
+model AttributionSession {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  adAccountId       String?  @map("ad_account_id")
+  sessionKey        String   @map("session_key")
+  lastNonDirectUtm  Json?    @map("last_non_direct_utm")
+  startedAt         DateTime @default(now()) @map("started_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  adAccount         AdAccount? @relation(fields: [adAccountId], references: [id], onDelete: SetNull)
+  clicks            Click[]
+  conversions       Conversion[]
+
+  @@unique([userId, sessionKey])
+  @@index([adAccountId])
+  @@map("attribution_sessions")
+}
+
+model KeywordCluster {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  campaignId        String?  @map("campaign_id")
+  name              String
+  centroidEmbedding Unsupported("vector")?
+  intent            String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  keywords          Keyword[]
+
+  @@index([userId, campaignId])
+  @@map("keyword_clusters")
+}
+
+model AdExtension {
+  id                String   @id @default(uuid())
+  campaignId        String   @map("campaign_id")
+  userId            String   @map("user_id")
+  type              String
+  payload           Json
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  campaign          Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, userId])
+  @@map("ad_extensions")
+}
+
+model OAuthSecret {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  provider          String
+  keyVersion        Int      @default(1) @map("key_version")
+  secretEncrypted   String   @map("secret_encrypted")
+  createdAt         DateTime @default(now()) @map("created_at")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, provider])
+  @@map("oauth_secrets")
+}
+
+model Job {
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  queueName         String    @map("queue_name")
+  jobName           String    @map("job_name")
+  status            JobStatus @default(QUEUED)
+  idempotencyKey    String    @map("idempotency_key")
+  payload           Json
+  result            Json?
+  error             String?
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, idempotencyKey])
+  @@index([queueName, status])
+  @@map("jobs")
+}
+
+model QueueDeadLetter {
+  id              String   @id @default(uuid())
+  queueName       String   @map("queue_name")
+  externalJobId   String?  @map("external_job_id")
+  payload         Json
+  error           String
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([queueName, createdAt])
+  @@map("queue_dead_letters")
+}
+
+model AuditLog {
+  id              String   @id @default(uuid())
+  userId          String?  @map("user_id")
+  action          String
+  resourceType    String   @map("resource_type")
+  resourceId      String?  @map("resource_id")
+  metadata        Json?
+  createdAt       DateTime @default(now()) @map("created_at")
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
+

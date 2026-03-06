@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "@ads/worker",
   "version": "0.0.1",
   "private": true,
@@ -12,6 +12,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@ads/ads-engine": "workspace:*",
+    "@ads/affiliate-engine": "workspace:*",
+    "@ads/ai-engine": "workspace:*",
+    "@ads/db": "workspace:*",
+    "@ads/scraping-engine": "workspace:*",
     "@ads/shared": "workspace:*",
     "bullmq": "^5.34.4",
     "dotenv": "^16.4.7",
@@ -25,3 +30,4 @@
     "typescript": "^5.7.2"
   }
 }
+

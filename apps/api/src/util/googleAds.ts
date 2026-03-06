@@ -1,4 +1,4 @@
-import { env } from '../plugins/env.js';
+﻿import { env } from '../plugins/env.js';
 
 type CachedAccessToken = {
   accessToken: string;
@@ -8,20 +8,30 @@ type CachedAccessToken = {
 const TOKEN_EXPIRY_SAFETY_WINDOW_MS = 30_000;
 const accessTokenCache = new Map<string, CachedAccessToken>();
 
-/**
- * Troca refresh_token por access_token para chamadas da Google Ads API.
- */
+function buildGoogleAdsHeaders(accessToken: string, loginCustomerId?: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${accessToken}`,
+    'developer-token': env.GOOGLE_DEVELOPER_TOKEN,
+    'Content-Type': 'application/json',
+  };
+
+  const login = loginCustomerId ?? env.GOOGLE_ADS_LOGIN_CUSTOMER_ID;
+  if (login) {
+    headers['login-customer-id'] = login;
+  }
+
+  return headers;
+}
+
 export async function getGoogleAdsAccessToken(refreshToken: string): Promise<string> {
-  const cachedToken = accessTokenCache.get(refreshToken);
-  if (cachedToken && cachedToken.expiresAt > Date.now()) {
-    return cachedToken.accessToken;
+  const cached = accessTokenCache.get(refreshToken);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.accessToken;
   }
 
   const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       client_id: env.GOOGLE_CLIENT_ID,
       client_secret: env.GOOGLE_CLIENT_SECRET,
@@ -31,72 +41,66 @@ export async function getGoogleAdsAccessToken(refreshToken: string): Promise<str
   });
 
   if (!tokenResponse.ok) {
-    const errorBody = await tokenResponse.text();
-    throw new Error(`Falha ao obter access_token: ${tokenResponse.status} - ${errorBody}`);
+    throw new Error(`OAuth refresh failed: ${tokenResponse.status} ${await tokenResponse.text()}`);
   }
 
   const tokenPayload = (await tokenResponse.json()) as { access_token?: string; expires_in?: number };
-
   if (!tokenPayload.access_token) {
-    throw new Error('Resposta OAuth sem access_token.');
+    throw new Error('OAuth refresh response missing access_token');
   }
 
   const expiresInMs = (tokenPayload.expires_in ?? 3600) * 1000;
-  const expiresAt = Date.now() + Math.max(expiresInMs - TOKEN_EXPIRY_SAFETY_WINDOW_MS, 0);
-
   accessTokenCache.set(refreshToken, {
     accessToken: tokenPayload.access_token,
-    expiresAt,
+    expiresAt: Date.now() + Math.max(expiresInMs - TOKEN_EXPIRY_SAFETY_WINDOW_MS, 0),
   });
 
   return tokenPayload.access_token;
 }
 
-/**
- * Lista customer resources acessíveis pelo usuário autenticado no Google Ads.
- */
-export async function listAccessibleCustomers(accessToken: string): Promise<unknown> {
+export async function listAccessibleCustomers(accessToken: string): Promise<{ resourceNames: string[] }> {
   const response = await fetch('https://googleads.googleapis.com/v18/customers:listAccessibleCustomers', {
     method: 'GET',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'developer-token': env.GOOGLE_DEVELOPER_TOKEN,
-    },
+    headers: buildGoogleAdsHeaders(accessToken),
   });
 
   if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`Falha ao listar customers: ${response.status} - ${errorBody}`);
+    throw new Error(`List customers failed: ${response.status} ${await response.text()}`);
   }
 
-  return response.json();
+  return (await response.json()) as { resourceNames: string[] };
 }
 
-/**
- * Executa uma busca GAQL (Google Ads Query Language).
- */
-export async function searchGoogleAds(
-  accessToken: string,
-  customerId: string,
-  query: string
-): Promise<any> {
-  const response = await fetch(
-    `https://googleads.googleapis.com/v18/customers/${customerId}/googleAds:search`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'developer-token': env.GOOGLE_DEVELOPER_TOKEN,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ query }),
-    }
-  );
+export async function searchGoogleAds(accessToken: string, customerId: string, query: string, loginCustomerId?: string): Promise<any> {
+  const response = await fetch(`https://googleads.googleapis.com/v18/customers/${customerId}/googleAds:search`, {
+    method: 'POST',
+    headers: buildGoogleAdsHeaders(accessToken, loginCustomerId),
+    body: JSON.stringify({ query }),
+  });
 
   if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`Google Ads Search Error: ${response.status} - ${errorBody}`);
+    throw new Error(`Search failed: ${response.status} ${await response.text()}`);
   }
 
   return response.json();
 }
+
+export async function mutateGoogleAds(
+  accessToken: string,
+  customerId: string,
+  operations: unknown[],
+  loginCustomerId?: string,
+): Promise<any> {
+  const response = await fetch(`https://googleads.googleapis.com/v18/customers/${customerId}/googleAds:mutate`, {
+    method: 'POST',
+    headers: buildGoogleAdsHeaders(accessToken, loginCustomerId),
+    body: JSON.stringify({ mutateOperations: operations }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Mutate failed: ${response.status} ${await response.text()}`);
+  }
+
+  return response.json();
+}
+

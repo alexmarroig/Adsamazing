@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "@ads/api",
   "version": "0.0.1",
   "private": true,
@@ -14,9 +14,17 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@ads/ads-engine": "workspace:*",
+    "@ads/affiliate-engine": "workspace:*",
+    "@ads/ai-engine": "workspace:*",
     "@ads/db": "workspace:*",
+    "@ads/shared": "workspace:*",
+    "@fastify/cors": "^10.1.0",
+    "@fastify/jwt": "^9.1.0",
+    "@fastify/rate-limit": "^10.3.0",
+    "bullmq": "^5.34.4",
     "dotenv": "^16.4.7",
-    "fastify": "^5.2.1",
+    "fastify": "^5.2.1",`n    "fastify-plugin": "^5.0.1",
     "openai": "^6.25.0",
     "pino": "^9.5.0",
     "zod": "^3.24.1"
@@ -30,3 +38,5 @@
   },
   "description": "Ads API service"
 }
+
+

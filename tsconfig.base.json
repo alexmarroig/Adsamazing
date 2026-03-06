@@ -1,4 +1,4 @@
-{
+﻿{
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
@@ -11,7 +11,12 @@
     "baseUrl": ".",
     "paths": {
       "@ads/shared/*": ["packages/shared/src/*"],
-      "@ads/db/*": ["packages/db/src/*"]
+      "@ads/db/*": ["packages/db/src/*"],
+      "@ads/ads-engine/*": ["packages/ads-engine/src/*"],
+      "@ads/affiliate-engine/*": ["packages/affiliate-engine/src/*"],
+      "@ads/ai-engine/*": ["packages/ai-engine/src/*"],
+      "@ads/scraping-engine/*": ["packages/scraping-engine/src/*"]
     }
   }
 }
+
