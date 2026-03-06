@@ -1,4 +1,4 @@
-﻿import { decryptToken, encryptToken } from '@ads/shared';
+import { decryptToken, encryptToken } from '@ads/shared';
 
 import { env } from '../plugins/env.js';
 

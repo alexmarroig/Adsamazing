@@ -1,142 +1,137 @@
-# Ads Autopilot Monorepo
+# Ads Autopilot V1 (Ads + Afiliados)
 
-Monorepo TypeScript com **pnpm workspaces** para o SaaS Ads Autopilot.
+Plataforma SaaS em monorepo para automa��o de Google Ads, descoberta de produtos afiliados, gera��o de landing pages e otimiza��o via workers.
 
 ## Stack
 
-- Node.js 20 LTS
-- pnpm
-- Next.js 15 (App Router) + Tailwind + componentes estilo shadcn/ui
-- Fastify API
-- BullMQ Worker + Scheduler
-- Prisma ORM
-- Zod para schemas/validação
-- Pino para logging
-- dotenv + zod para validação de env
-- Docker Compose para Redis + Postgres local
-- Produção planejada para Supabase Postgres (via `DATABASE_URL`)
+- Backend: Node.js + Fastify + TypeScript + Prisma + PostgreSQL
+- Queue/Workers: Redis + BullMQ
+- Frontend: Next.js 15 + React + Tailwind
+- AI: OpenAI (copy, landing blocks, embeddings)
+- Infra: Docker-compatible, deploy�vel em Railway
 
-## Estrutura
+## Monorepo
 
 ```txt
 apps/
-  web/       # Next.js 15+ (login/dashboard placeholders)
-  api/       # Fastify (health, me, oauth start/callback)
-  worker/    # BullMQ queue `sync_metrics` + scheduler
+  api/
+  web/
+  worker/
 packages/
-  db/        # Prisma schema + client
-  shared/    # tipos utilitários + zod + crypto AES-256-GCM
+  db/
+  shared/
+  ads-engine/
+  affiliate-engine/
+  ai-engine/
+  scraping-engine/
 ```
 
-## Pré-requisitos
+## M�dulos implementados
 
-- Node 20+
-- pnpm 9+
-- Docker + Docker Compose
+1. Google Ads automation engine (OAuth + customer discovery + m�tricas + sele��o de conta)
+2. Affiliate product discovery engine (API-first + ranking)
+3. Product scraping engine (Playwright em worker + feature flag)
+4. Affiliate landing page generator (AI + JSON blocks + renderer Next.js)
+5. Ad copy generation engine (headlines/descriptions/sitelinks/callouts/snippets)
+6. Keyword intelligence engine (embeddings + clustering/inten��o)
+7. Automated campaign builder (sync e async)
+8. Analytics engine (overview + top entities + rollup job)
+9. Affiliate tracking system (click/session/attribution/conversion)
+10. Worker services (queues, retries, backoff, DLQ, status em DB)
+
+## API v1
+
+- `GET /health`
+- `GET /v1/google/oauth/start`
+- `GET /v1/google/oauth/callback`
+- `GET /v1/google/ads/customers`
+- `POST /v1/google/ads/accounts/select`
+- `GET /v1/google/ads/metrics`
+- `GET /v1/google/ads/extensions/suggest`
+- `GET /v1/products`
+- `POST /v1/products`
+- `POST /v1/products/discover`
+- `POST /v1/products/rank`
+- `GET /v1/landing-pages`
+- `GET /v1/landing-pages/:slug`
+- `POST /v1/landing-pages/generate`
+- `POST /v1/landing-pages/generate/async`
+- `POST /v1/landing-pages/:landingPageId/publish`
+- `GET /v1/campaigns`
+- `POST /v1/campaigns/build`
+- `POST /v1/campaigns/build/async`
+- `POST /v1/campaigns/launch`
+- `GET /v1/analytics`
+- `POST /v1/analytics/rollup`
+- `POST /v1/tracking/click`
+- `POST /v1/tracking/conversion`
+- `POST /v1/ai/ad-copy/generate`
+- `POST /v1/ai/keywords/embeddings`
+- `POST /v1/ai/landing/blocks`
+- `POST /v1/jobs`
+- `GET /v1/jobs/:jobId`
+
+## Auth e seguran�a
+
+- JWT Supabase (`SUPABASE_JWT_SECRET`) validado no Fastify
+- Rate limit global por IP
+- Tokens OAuth criptografados com AES-256-GCM (`ENCRYPTION_KEY`)
+- Auditoria por request autenticada (`audit_logs`)
+
+## Filas BullMQ
+
+- `product_discovery`
+- `product_scrape`
+- `keyword_intel`
+- `landing_generate`
+- `campaign_build`
+- `campaign_optimize`
+- `analytics_rollup`
+- `affiliate_reconcile`
 
 ## Setup local
 
-1. Copie variáveis de ambiente:
+1. Copie env:
 
 ```bash
 cp .env.example .env
 ```
 
-2. Suba infraestrutura local:
+2. Infra local:
 
 ```bash
 docker compose up -d
 ```
 
-3. Instale dependências:
+3. Instala��o:
 
 ```bash
-pnpm install
+corepack pnpm install
 ```
 
-4. Gere o Prisma Client:
+4. Typecheck:
 
 ```bash
-pnpm --filter @ads/db prisma:generate
+corepack pnpm -r typecheck
 ```
 
-5. Rode migrações (opcional, recomendado):
+5. Build dos servi�os:
 
 ```bash
-pnpm --filter @ads/db prisma:migrate
+corepack pnpm --filter @ads/db build
+corepack pnpm --filter @ads/api build
+corepack pnpm --filter @ads/worker build
+corepack pnpm --filter @ads/web build
 ```
 
-6. Rode tudo em modo dev (web + api + worker):
+## Deploy Railway
 
-```bash
-pnpm dev
-```
-
-## Scripts úteis (raiz)
-
-- `pnpm dev`: sobe `web`, `api` e `worker`
-- `pnpm lint`: lint em todos os pacotes/apps
-- `pnpm typecheck`: TypeScript check em todos
-- `pnpm build`: build de todo o workspace
-
-## Segurança
-
-- Tokens devem ser criptografados com **AES-256-GCM** via `ENCRYPTION_KEY` (base64 de 32 bytes).
-- Não logar tokens em nenhum fluxo.
-- API usa middleware MVP de autenticação por `x-user-id`, preparado para troca por Supabase Auth depois.
-
-## Rotas da API
-
-- `GET /health`
-- `GET /v1/me` (placeholder; requer `x-user-id`)
-- `GET /v1/google/oauth/start` (placeholder URL)
-- `GET /v1/google/oauth/callback` (placeholder)
-
-## Banco de dados
-
-Schema Prisma em `packages/db/prisma/schema.prisma` com tabelas:
-
-- `users`
-- `google_connections`
-- `ad_accounts`
-- `sync_runs`
-
-Em produção, basta apontar `DATABASE_URL` para Supabase Postgres.
-
-## Deploy no Railway
-
-Este repositório fixa `pnpm@10.0.0` no `packageManager` e usa comandos diretos com `pnpm` (sem `corepack enable`).
-
-Configure com Root Directory na raiz (`/`) e dois services separados.
-
-API service:
-
-- Build Command: `pnpm --filter @ads/api... build`
-- Start Command: `pnpm --filter @ads/api start`
-
-Worker service:
-
-- Build Command: `pnpm --filter @ads/worker build`
-- Start Command: `pnpm --filter @ads/worker start`
-
-Se ainda falhar, faça redeploy com *Clear build cache*.
-Para evitar o fallback automático para `npm` (e o erro `pnpm: not found`), este repositório define **`nixpacks.toml`** com as fases explícitas de build:
-
-- setup: instala `nodejs_20` e `pnpm` via Nix
-- install: `pnpm install --no-frozen-lockfile`
-- build: `pnpm --filter @ads/api... build`
-- start: `pnpm --filter @ads/api start`
-
-> Importante: no painel do Railway, deixe o serviço usar a configuração do repositório. Se Build/Start Command estiverem preenchidos manualmente com `pnpm ...`, eles podem sobrescrever essa config e manter o erro.
-
-Para o worker, use um serviço separado com:
-
-- Build Command: `pnpm --filter @ads/worker build`
-- Start Command: `pnpm --filter @ads/worker start`
-
-Para evitar fallback para `npm` em monorepo, este repositório inclui `pnpm-lock.yaml` e `railway.toml`.
-
-- Build Command: `pnpm --filter @ads/api... build`
-- Start Command: `pnpm --filter @ads/api start`
-
-O filtro `@ads/api...` garante build da API e dos pacotes de workspace dependentes (ex.: `@ads/db`).
+- Service 1 (API):
+  - Build: `corepack pnpm --filter @ads/api build`
+  - Start: `corepack pnpm --filter @ads/api start`
+- Service 2 (Worker):
+  - Build: `corepack pnpm --filter @ads/worker build`
+  - Start: `corepack pnpm --filter @ads/worker start`
+- Service 3 (Web):
+  - Build: `corepack pnpm --filter @ads/web build`
+  - Start: `corepack pnpm --filter @ads/web start`

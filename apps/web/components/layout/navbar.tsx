@@ -1,28 +1,35 @@
 'use client';
 
-import { Moon, Sun } from 'lucide-react';
-import { useTheme } from 'next-themes';
-import { Button } from '@/components/ui/button';
+import { LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+
+import { useAuth } from '@/components/auth/auth-provider';
 import { AccountSelector } from './account-selector';
+import { Button } from '@/components/ui/button';
 
 export function Navbar() {
-  const { theme, setTheme } = useTheme();
+  const { user, signOut } = useAuth();
+  const router = useRouter();
 
   return (
-    <div className="flex items-center p-4 border-b border-white/10 glass-dark sticky top-0 z-50 justify-between">
-      <AccountSelector />
-      <div className="flex items-center gap-x-2">
+    <header className="sticky top-0 z-30 flex items-center justify-between border-b border-zinc-800 bg-zinc-950/95 px-4 py-3 backdrop-blur md:px-8">
+      <div className="flex items-center gap-3">
+        <AccountSelector />
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="hidden text-sm text-zinc-300 md:block">{user?.email}</span>
         <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="text-white hover:bg-white/10"
+          variant="outline"
+          className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-800"
+          onClick={async () => {
+            await signOut();
+            router.replace('/');
+          }}
         >
-          <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          <span className="sr-only">Toggle theme</span>
+          <LogOut className="mr-2 h-4 w-4" />
+          Sair
         </Button>
       </div>
-    </div>
+    </header>
   );
 }

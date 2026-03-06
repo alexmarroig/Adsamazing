@@ -1,4 +1,4 @@
-﻿import { z } from 'zod';
+import { z } from 'zod';
 
 const metricSchema = z.object({
   ctr: z.number(),

@@ -1,4 +1,4 @@
-﻿import crypto from 'node:crypto';
+import crypto from 'node:crypto';
 
 export * from './contracts/index.js';
 export * from './constants/index.js';

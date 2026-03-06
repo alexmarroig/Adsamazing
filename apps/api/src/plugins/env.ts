@@ -1,4 +1,4 @@
-﻿import { existsSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 import dotenv from 'dotenv';
@@ -27,11 +27,7 @@ const envSchema = z.object({
   GOOGLE_OAUTH_SCOPES: z.string().min(1),
   GOOGLE_ADS_LOGIN_CUSTOMER_ID: z.string().optional(),
 
-  ENABLE_SCRAPING_CONNECTOR: z
-    .string()
-    .optional()
-    .transform((value) => value === '1' || value === 'true')
-    .default(false),
+  ENABLE_SCRAPING_CONNECTOR: z.coerce.boolean().default(false),
 });
 
 export const env = envSchema.parse(process.env);

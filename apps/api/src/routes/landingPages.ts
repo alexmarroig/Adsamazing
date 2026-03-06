@@ -1,8 +1,8 @@
-﻿import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
 import { generateLandingBlocks } from '@ads/ai-engine';
-import { prisma } from '@ads/db';
+import { Prisma, prisma } from '@ads/db';
 import { generateLandingBodySchema, paginatedQuerySchema, queueNames } from '@ads/shared';
 
 import { env } from '../plugins/env.js';
@@ -86,7 +86,7 @@ export const landingPagesRoutes: FastifyPluginAsync = async (app) => {
         productId: product.id,
         slug,
         title: `${product.title} - Oferta`,
-        jsonBlocks: blocks,
+        jsonBlocks: blocks as Prisma.InputJsonValue,
       },
     });
 

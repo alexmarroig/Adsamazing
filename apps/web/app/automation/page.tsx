@@ -1,91 +1,113 @@
 'use client';
 
-import { useState } from 'react';
-import { Zap, Plus, Play, Pause, Trash2, Bell } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { FormEvent, useState } from 'react';
+
+import { useAuth } from '@/components/auth/auth-provider';
+import { ConsoleShell } from '@/components/layout/console-shell';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { api } from '@/lib/api';
+
+const queueOptions = [
+  'product_discovery',
+  'product_scrape',
+  'keyword_intel',
+  'landing_generate',
+  'campaign_build',
+  'campaign_optimize',
+  'analytics_rollup',
+  'affiliate_reconcile',
+];
 
 export default function AutomationPage() {
-  const [rules, setRules] = useState([
-    { id: '1', name: 'Pausar se CPC > R$ 10', metric: 'CPC', operator: '>', value: 10, action: 'Pausar Anúncio', active: true },
-    { id: '2', name: 'Aumentar Lance se Conversão > 5%', metric: 'Taxa de Conv.', operator: '>', value: 5, action: 'Aumentar Lance 20%', active: false },
-  ]);
+  const { token } = useAuth();
+  const [queueName, setQueueName] = useState(queueOptions[0]);
+  const [idempotencyKey, setIdempotencyKey] = useState(`manual-${Date.now()}`);
+  const [payloadJson, setPayloadJson] = useState('{"query":"marketing"}');
+  const [jobResult, setJobResult] = useState<{ jobId?: string; dbJobId?: string; deduplicated?: boolean } | null>(null);
+  const [jobIdLookup, setJobIdLookup] = useState('');
+  const [jobStatus, setJobStatus] = useState<Record<string, unknown> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const enqueue = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!token) {
+      return;
+    }
+
+    try {
+      const payload = JSON.parse(payloadJson) as Record<string, unknown>;
+      const result = await api.post<{ jobId: string; dbJobId: string; deduplicated: boolean }>('/v1/jobs', token, {
+        queueName,
+        idempotencyKey,
+        payload,
+      });
+
+      setJobResult(result);
+      setError(null);
+      setJobIdLookup(result.dbJobId ?? '');
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Falha ao criar job');
+    }
+  };
+
+  const fetchJob = async () => {
+    if (!token || !jobIdLookup) {
+      return;
+    }
+
+    try {
+      const result = await api.get<Record<string, unknown>>(`/v1/jobs/${jobIdLookup}`, token);
+      setJobStatus(result);
+      setError(null);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Falha ao buscar job');
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight text-white">Automações Inteligentes</h1>
-          <p className="text-zinc-400">Configure regras para monitorar e agir automaticamente em suas campanhas.</p>
-        </div>
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2 neon-blue">
-          <Plus className="w-4 h-4" />
-          Nova Regra
-        </Button>
-      </div>
+    <ConsoleShell>
+      <div className="space-y-6">
+        <h1 className="text-3xl font-semibold">Jobs e Worker</h1>
+        {error && <p className="text-sm text-red-400">{error}</p>}
 
-      <div className="grid gap-6">
-        {rules.map((rule) => (
-          <Card key={rule.id} className={`bg-white/5 border-white/10 ${!rule.active && 'opacity-60'}`}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-xl ${rule.active ? 'bg-blue-500/20 text-blue-500' : 'bg-zinc-500/20 text-zinc-500'}`}>
-                    <Zap className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-white">{rule.name}</h3>
-                    <p className="text-sm text-zinc-500">
-                      Se <span className="text-zinc-300 font-medium">{rule.metric}</span> {rule.operator} <span className="text-zinc-300 font-medium">{rule.value}</span>, então <span className="text-blue-400 font-medium">{rule.action}</span>
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" className="border-white/10 hover:bg-white/10 text-zinc-400">
-                    <Bell className="w-4 h-4" />
-                  </Button>
-                  <Button variant="outline" size="icon" className="border-white/10 hover:bg-white/10 text-zinc-400">
-                    {rule.active ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                  </Button>
-                  <Button variant="outline" size="icon" className="border-white/10 hover:bg-red-500/20 hover:text-red-500 text-zinc-400">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+        <Card className="border-zinc-800 bg-zinc-900/60">
+          <CardHeader><CardTitle>Enfileirar job manual</CardTitle></CardHeader>
+          <CardContent>
+            <form className="space-y-3" onSubmit={enqueue}>
+              <select
+                value={queueName}
+                onChange={(event) => setQueueName(event.target.value)}
+                className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3"
+              >
+                {queueOptions.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+              <Input value={idempotencyKey} onChange={(event) => setIdempotencyKey(event.target.value)} placeholder="Idempotency key" required />
+              <textarea
+                value={payloadJson}
+                onChange={(event) => setPayloadJson(event.target.value)}
+                className="min-h-28 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm"
+              />
+              <Button type="submit">Enviar job</Button>
+            </form>
+            <pre className="mt-3 rounded bg-zinc-950 p-3 text-xs">{JSON.stringify(jobResult, null, 2)}</pre>
+          </CardContent>
+        </Card>
 
-      <Card className="bg-white/5 border-white/10 border-dashed">
-        <CardHeader>
-          <CardTitle className="text-white text-lg flex items-center gap-2">
-            <Play className="w-5 h-5 text-emerald-500" />
-            Logs de Execução Recentes
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[
-              { time: '10:45', rule: 'Pausar se CPC > R$ 10', status: 'Executado', details: 'Campanha "Verão 2024" pausada (CPC: R$ 12.40)' },
-              { time: '09:00', rule: 'Ajuste de Lance Diário', status: 'Verificado', details: 'Nenhuma ação necessária' },
-            ].map((log, i) => (
-              <div key={i} className="flex items-start gap-4 p-3 rounded-lg bg-black/20 border border-white/5">
-                <span className="text-xs text-zinc-500 mt-1 font-mono">{log.time}</span>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-white">{log.rule}</p>
-                  <p className="text-xs text-zinc-500">{log.details}</p>
-                </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                  log.status === 'Executado' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-zinc-500/20 text-zinc-500'
-                }`}>
-                  {log.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        <Card className="border-zinc-800 bg-zinc-900/60">
+          <CardHeader><CardTitle>Status de job</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex gap-2">
+              <Input value={jobIdLookup} onChange={(event) => setJobIdLookup(event.target.value)} placeholder="DB Job ID (UUID)" />
+              <Button onClick={fetchJob}>Consultar</Button>
+            </div>
+            <pre className="rounded bg-zinc-950 p-3 text-xs">{JSON.stringify(jobStatus, null, 2)}</pre>
+          </CardContent>
+        </Card>
+      </div>
+    </ConsoleShell>
   );
 }

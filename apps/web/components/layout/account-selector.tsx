@@ -1,61 +1,64 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Check, ChevronsUpDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { useEffect, useState } from 'react';
+
+import { api } from '@/lib/api';
+import { useAuth } from '@/components/auth/auth-provider';
+
+type AdAccount = {
+  id: string;
+  name: string;
+  customerId: string;
+};
 
 export function AccountSelector() {
-  const [open, setOpen] = useState(false);
-  const [value, setValue] = useState('');
-  const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([]);
+  const { token } = useAuth();
+  const [accounts, setAccounts] = useState<AdAccount[]>([]);
+  const [selected, setSelected] = useState<string>('');
 
   useEffect(() => {
-    // Simulando fetch de contas
-    setAccounts([
-      { id: '123-456-7890', name: 'Minha Conta Principal' },
-      { id: '098-765-4321', name: 'Cliente X - E-commerce' },
-    ]);
-  }, []);
+    if (!token) {
+      return;
+    }
+
+    api
+      .get<AdAccount[]>('/v1/campaigns?limit=1', token)
+      .then(() => {
+        // Campaigns endpoint exists to keep selector mounted without extra API surface.
+      })
+      .catch(() => undefined);
+
+    api
+      .get<AdAccount[]>('/v1/google/ads/customers', token)
+      .then((data) => {
+        const mapped = (data as unknown as { resourceNames?: string[] }).resourceNames?.map((resourceName) => {
+          const customerId = resourceName.replace('customers/', '');
+          return {
+            id: customerId,
+            name: `Conta ${customerId}`,
+            customerId,
+          };
+        }) ?? [];
+
+        setAccounts(mapped);
+      })
+      .catch(() => {
+        setAccounts([]);
+      });
+  }, [token]);
 
   return (
-    <div className="flex items-center space-x-4">
-      <div className="relative">
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-[250px] justify-between border-white/10 bg-white/5 text-white hover:bg-white/10"
-          onClick={() => setOpen(!open)}
-        >
-          {value
-            ? accounts.find((account) => account.id === value)?.name
-            : 'Selecionar conta...'}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-        {open && (
-          <div className="absolute top-full left-0 mt-2 w-[250px] rounded-md border border-white/10 bg-[#09090b] shadow-xl z-[100]">
-            {accounts.map((account) => (
-              <div
-                key={account.id}
-                className="flex items-center px-3 py-2 cursor-pointer hover:bg-white/5 text-sm text-zinc-300 hover:text-white"
-                onClick={() => {
-                  setValue(account.id);
-                  setOpen(false);
-                }}
-              >
-                <Check
-                  className={cn(
-                    'mr-2 h-4 w-4',
-                    value === account.id ? 'opacity-100' : 'opacity-0'
-                  )}
-                />
-                {account.name}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+    <select
+      value={selected}
+      onChange={(event) => setSelected(event.target.value)}
+      className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+    >
+      <option value="">Selecionar conta</option>
+      {accounts.map((account) => (
+        <option key={account.id} value={account.id}>
+          {account.name}
+        </option>
+      ))}
+    </select>
   );
 }

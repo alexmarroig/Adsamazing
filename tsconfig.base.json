@@ -1,4 +1,4 @@
-﻿{
+{
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
@@ -10,11 +10,17 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
+      "@ads/shared": ["packages/shared/src/index.ts"],
       "@ads/shared/*": ["packages/shared/src/*"],
+      "@ads/db": ["packages/db/src/index.ts"],
       "@ads/db/*": ["packages/db/src/*"],
+      "@ads/ads-engine": ["packages/ads-engine/src/index.ts"],
       "@ads/ads-engine/*": ["packages/ads-engine/src/*"],
+      "@ads/affiliate-engine": ["packages/affiliate-engine/src/index.ts"],
       "@ads/affiliate-engine/*": ["packages/affiliate-engine/src/*"],
+      "@ads/ai-engine": ["packages/ai-engine/src/index.ts"],
       "@ads/ai-engine/*": ["packages/ai-engine/src/*"],
+      "@ads/scraping-engine": ["packages/scraping-engine/src/index.ts"],
       "@ads/scraping-engine/*": ["packages/scraping-engine/src/*"]
     }
   }

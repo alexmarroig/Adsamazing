@@ -94,7 +94,7 @@ export function LandingRenderer({ blocks }: { blocks: unknown }): ReactNode {
           <div className="grid gap-4 md:grid-cols-2">
             {testimonials.map((testimonial, index) => (
               <article key={`${testimonial.author}-${index}`} className="rounded-xl border border-zinc-700 bg-zinc-900/60 p-4">
-                <p className="text-zinc-200">\"{testimonial.quote}\"</p>
+                <p className="text-zinc-200">&ldquo;{testimonial.quote}&rdquo;</p>
                 <p className="mt-2 text-sm text-zinc-400">{testimonial.author}</p>
               </article>
             ))}

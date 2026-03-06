@@ -1,4 +1,4 @@
-﻿import { env } from '../plugins/env.js';
+import { env } from '../plugins/env.js';
 
 type CachedAccessToken = {
   accessToken: string;

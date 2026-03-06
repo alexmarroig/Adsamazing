@@ -1,4 +1,4 @@
-﻿import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync } from 'fastify';
 import { Prisma } from '@ads/db';
 
 import { fetchAffiliateNetworkProducts, rankProducts } from '@ads/affiliate-engine';

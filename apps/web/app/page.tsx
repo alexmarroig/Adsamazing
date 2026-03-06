@@ -1,76 +1,123 @@
 'use client';
 
-import Link from 'next/link';
+import { FormEvent, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+import { useAuth } from '@/components/auth/auth-provider';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { motion } from 'framer-motion';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { supabase } from '@/lib/supabase';
 
-const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
-const GOOGLE_OAUTH_START_URL = `${BACKEND_BASE_URL}/v1/google/oauth/start`;
+export default function AuthPage() {
+  const router = useRouter();
+  const { session, loading } = useAuth();
 
-export default function LoginPage() {
-  const handleGoogleLogin = () => {
-    window.location.href = GOOGLE_OAUTH_START_URL;
+  const [isSignup, setIsSignup] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!loading && session) {
+      router.replace('/dashboard');
+    }
+  }, [loading, session, router]);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    setMessage(null);
+    setSubmitting(true);
+
+    try {
+      if (isSignup) {
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: name,
+            },
+          },
+        });
+
+        if (signUpError) {
+          throw signUpError;
+        }
+
+        setMessage('Cadastro realizado. Confira seu email para confirmação (se habilitado no Supabase).');
+      } else {
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) {
+          throw signInError;
+        }
+        router.replace('/dashboard');
+      }
+    } catch (authError) {
+      setError(authError instanceof Error ? authError.message : 'Falha na autenticação.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#09090b] px-6">
-      {/* Background decorations */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 2 }}
-        className="absolute top-[-10%] left-[-10%] h-[600px] w-[600px] rounded-full bg-blue-600/10 blur-[120px]"
-      />
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 2, delay: 0.5 }}
-        className="absolute bottom-[-10%] right-[-10%] h-[600px] w-[600px] rounded-full bg-blue-600/10 blur-[120px]"
-      />
+    <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
+      <Card className="w-full max-w-md border-zinc-800 bg-zinc-900/80">
+        <CardHeader>
+          <CardTitle className="text-center text-2xl text-zinc-100">Adsamazing Platform</CardTitle>
+          <p className="text-center text-sm text-zinc-400">Login com email e senha</p>
+        </CardHeader>
+        <CardContent>
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            {isSignup && (
+              <Input
+                placeholder="Nome"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                required
+              />
+            )}
+            <Input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+            />
+            <Input
+              type="password"
+              placeholder="Senha"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              minLength={6}
+              required
+            />
 
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-      >
-        <Card className="relative z-10 w-full max-w-md border-white/10 bg-black/40 p-8 backdrop-blur-xl">
-          <div className="mb-8 text-center">
-            <motion.div
-              initial={{ y: -20 }}
-              animate={{ y: 0 }}
-              className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 font-bold italic text-white shadow-[0_0_30px_rgba(37,99,235,0.6)] text-2xl"
-            >
-              A
-            </motion.div>
-            <h1 className="text-4xl font-bold tracking-tighter text-white neon-text-blue">
-              ADS AUTOPILOT
-            </h1>
-            <p className="mt-3 text-zinc-400">
-              Gerenciamento inteligente com IA e Automático.
-            </p>
-          </div>
+            {error && <p className="text-sm text-red-400">{error}</p>}
+            {message && <p className="text-sm text-emerald-400">{message}</p>}
 
-          <div className="space-y-4">
-            <Button
-              type="button"
-              onClick={handleGoogleLogin}
-              className="w-full bg-blue-600 text-white hover:bg-blue-700 neon-blue h-12 text-base font-bold"
-            >
-              Entrar com Google
+            <Button type="submit" className="w-full" disabled={submitting}>
+              {submitting ? 'Processando...' : isSignup ? 'Criar conta' : 'Entrar'}
             </Button>
-            <Link href="/dashboard" className="block">
-              <Button variant="outline" className="w-full border-white/10 bg-white/5 text-white hover:bg-white/10 h-12">
-                Acesso de Gestor
-              </Button>
-            </Link>
-          </div>
+          </form>
 
-          <div className="mt-8 text-center text-[10px] text-zinc-600 uppercase tracking-widest">
-            The Future of Traffic Management
-          </div>
-        </Card>
-      </motion.div>
+          <button
+            type="button"
+            onClick={() => {
+              setIsSignup((current) => !current);
+              setError(null);
+              setMessage(null);
+            }}
+            className="mt-4 w-full text-sm text-zinc-300 underline underline-offset-4"
+          >
+            {isSignup ? 'Já tenho conta' : 'Criar nova conta'}
+          </button>
+        </CardContent>
+      </Card>
     </main>
   );
 }

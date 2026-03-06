@@ -1,4 +1,4 @@
-﻿import { Queue, QueueEvents, Worker } from 'bullmq';
+import { Queue, QueueEvents, Worker } from 'bullmq';
 import pino from 'pino';
 
 import { createBudgetAdjustment } from '@ads/ads-engine';
@@ -17,12 +17,14 @@ const logger = pino({
 
 const connection = { url: env.REDIS_URL };
 
-const queues = Object.values(queueNames).reduce<Record<string, Queue>>((acc, queueName) => {
+const queueNameList = Object.values(queueNames) as string[];
+
+const queues = queueNameList.reduce<Record<string, Queue>>((acc, queueName) => {
   acc[queueName] = new Queue(queueName, { connection });
   return acc;
 }, {});
 
-const queueEvents = Object.values(queueNames).map((queueName) => new QueueEvents(queueName, { connection }));
+const queueEvents = queueNameList.map((queueName) => new QueueEvents(queueName, { connection }));
 
 async function updateJobStatusByPayload(data: unknown, status: 'RUNNING' | 'SUCCEEDED' | 'FAILED', result?: unknown, error?: string) {
   const payload = data as { userId?: string };
@@ -179,7 +181,7 @@ const workers: Worker[] = [
           take: 200,
         });
 
-        const keywords = campaignKeywords.map((item) => item.text);
+        const keywords = campaignKeywords.map((item: { text: string }) => item.text);
         if (keywords.length === 0) {
           await updateJobStatusByPayload(job.data, 'SUCCEEDED', { clusters: 0 });
           return { clusters: 0 };
@@ -187,8 +189,8 @@ const workers: Worker[] = [
 
         const vectors = await embedKeywords({ apiKey: env.OPENAI_API_KEY, keywords });
 
-        const clusters = keywords.reduce<Array<{ name: string; intent: string; keyword: string; vector: number[] }>>((acc, keyword, index) => {
-          const intent = /buy|comprar|desconto|oferta/i.test(keyword) ? 'buyer' : 'research';
+        const clusters = keywords.reduce<Array<{ name: string; intent: string; keyword: string; vector: number[] }>>((acc: Array<{ name: string; intent: string; keyword: string; vector: number[] }>, keyword: string, index: number) => {
+          const intent: 'buyer' | 'research' = /buy|comprar|desconto|oferta/i.test(keyword) ? 'buyer' : 'research';
           const name = intent === 'buyer' ? 'Buyer Intent' : 'Research Intent';
           acc.push({ name, intent, keyword, vector: vectors[index] ?? [] });
           return acc;
@@ -411,7 +413,7 @@ for (const worker of workers) {
 
 for (const eventSource of queueEvents) {
   eventSource.on('waiting', ({ jobId }) => {
-    logger.debug({ queueName: eventSource.name, jobId }, 'job waiting');
+    logger.debug({ queueName: eventSource.opts?.prefix ?? 'queue', jobId }, 'job waiting');
   });
 }
 

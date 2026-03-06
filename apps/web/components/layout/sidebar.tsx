@@ -2,101 +2,48 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { BarChart3, Boxes, Briefcase, LayoutDashboard, Link2, Rocket, Settings, Workflow } from 'lucide-react';
+
 import { cn } from '@/lib/utils';
-import {
-  LayoutDashboard,
-  Search,
-  Zap,
-  Image as ImageIcon,
-  Settings,
-  BarChart3,
-  Target,
-  Code2
-} from 'lucide-react';
 
 const routes = [
-  {
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-    href: '/dashboard',
-    color: 'text-sky-500',
-  },
-  {
-    label: 'Palavras-Chave',
-    icon: Search,
-    href: '/keywords',
-    color: 'text-violet-500',
-  },
-  {
-    label: 'Automação',
-    icon: Zap,
-    color: 'text-pink-700',
-    href: '/automation',
-  },
-  {
-    label: 'Imagens AI',
-    icon: ImageIcon,
-    color: 'text-orange-700',
-    href: '/images',
-  },
-  {
-    label: 'SEO & Site',
-    icon: Target,
-    color: 'text-emerald-500',
-    href: '/seo',
-  },
-  {
-    label: 'Tags & Rastreio',
-    icon: Code2,
-    color: 'text-blue-400',
-    href: '/tags',
-  },
-  {
-    label: 'Analytics',
-    icon: BarChart3,
-    color: 'text-yellow-500',
-    href: '/analytics',
-  },
-  {
-    label: 'Configurações',
-    icon: Settings,
-    href: '/settings',
-  },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/google-ads', label: 'Google Ads', icon: Rocket },
+  { href: '/products', label: 'Produtos', icon: Boxes },
+  { href: '/landing-pages', label: 'Landing Pages', icon: Link2 },
+  { href: '/campaigns', label: 'Campanhas', icon: Briefcase },
+  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { href: '/automation', label: 'Jobs/Worker', icon: Workflow },
+  { href: '/settings', label: 'Configurações', icon: Settings },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="space-y-4 py-4 flex flex-col h-full bg-[#09090b] text-white border-r border-white/10 glass-dark">
-      <div className="px-3 py-2 flex-1">
-        <Link href="/dashboard" className="flex items-center pl-3 mb-14">
-          <div className="relative w-8 h-8 mr-4">
-             <div className="absolute inset-0 bg-blue-500 blur-lg opacity-50 animate-pulse"></div>
-             <div className="relative z-10 w-full h-full bg-blue-600 rounded-lg flex items-center justify-center font-bold italic">A</div>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tighter neon-text-blue">
-            ADS AUTO
-          </h1>
-        </Link>
-        <div className="space-y-1">
-          {routes.map((route) => (
+    <div className="flex h-full flex-col">
+      <div className="border-b border-zinc-800 px-6 py-5">
+        <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">Ads + Afiliados</p>
+        <h1 className="mt-1 text-xl font-semibold">Control Center</h1>
+      </div>
+      <nav className="flex-1 space-y-1 p-3">
+        {routes.map((route) => {
+          const active = pathname === route.href;
+          return (
             <Link
               key={route.href}
               href={route.href}
               className={cn(
-                'text-sm group flex p-3 w-full justify-start font-medium cursor-pointer hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200',
-                pathname === route.href ? 'text-white bg-white/10 neon-blue' : 'text-zinc-400'
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition',
+                active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-900 hover:text-white',
               )}
             >
-              <div className="flex items-center flex-1">
-                <route.icon className={cn('h-5 w-5 mr-3', route.color)} />
-                {route.label}
-              </div>
+              <route.icon className="h-4 w-4" />
+              {route.label}
             </Link>
-          ))}
-        </div>
-      </div>
+          );
+        })}
+      </nav>
     </div>
   );
 }

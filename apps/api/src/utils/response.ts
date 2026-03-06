@@ -1,4 +1,4 @@
-﻿import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyReply, FastifyRequest } from 'fastify';
 
 type ErrorPayload = {
   code: string;

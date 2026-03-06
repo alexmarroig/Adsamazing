@@ -1,4 +1,7 @@
-﻿import OpenAI from 'openai';
+import OpenAI from 'openai';
+import { adCopySystemPrompt, landingSystemPrompt } from './prompts.js';
+
+export * from './prompts.js';
 
 export type AdCopyResult = {
   headlines: string[];
@@ -30,7 +33,7 @@ export async function generateAdCopy(input: {
     input: [
       {
         role: 'system',
-        content: 'You generate Google Ads assets. Return strict JSON with arrays: headlines, descriptions, sitelinks, callouts, snippets.',
+        content: adCopySystemPrompt,
       },
       {
         role: 'user',
@@ -88,7 +91,7 @@ export async function generateLandingBlocks(input: {
     input: [
       {
         role: 'system',
-        content: 'Return a JSON object with keys: headline, hero, benefits, testimonials, cta, faq, comparisonTable.',
+        content: landingSystemPrompt,
       },
       {
         role: 'user',

@@ -1,4 +1,4 @@
-﻿import Fastify from 'fastify';
+import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 
@@ -62,7 +62,7 @@ app.addHook('onResponse', async (request, reply) => {
       data: {
         userId,
         action: request.method,
-        resourceType: request.routerPath ?? request.url,
+        resourceType: request.routeOptions.url ?? request.url,
         metadata: {
           statusCode: reply.statusCode,
           requestId: request.id,
