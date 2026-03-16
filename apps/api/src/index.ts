@@ -15,6 +15,7 @@ import { jobsRoutes } from './routes/jobs.js';
 import { landingPagesRoutes } from './routes/landingPages.js';
 import { oauthRoutes } from './routes/oauth.js';
 import { productsRoutes } from './routes/products.js';
+import { shopeeRoutes } from './routes/shopee.js';
 import { trackingRoutes } from './routes/tracking.js';
 import { sendOk } from './utils/response.js';
 
@@ -91,6 +92,7 @@ app.register(analyticsRoutes, { prefix: '/v1/analytics' });
 app.register(trackingRoutes, { prefix: '/v1/tracking' });
 app.register(aiRoutes, { prefix: '/v1/ai' });
 app.register(jobsRoutes, { prefix: '/v1/jobs' });
+app.register(shopeeRoutes, { prefix: '/v1/shopee' });
 
 const start = async (): Promise<void> => {
   try {
