@@ -1,144 +1,113 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { execSync } from 'child_process';
+import { execSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 
-interface VideoEditConfig {
-  inputPath: string;
+export interface VideoEditorConfig {
+  inputVideoPath: string;
   outputPath: string;
-  subtitles?: {
-    text: string;
-    startTime: number; // in seconds
-    endTime: number; // in seconds
-    fontSize?: number;
-    color?: string;
-  }[];
-  cta?: {
-    text: string;
-    startTime: number;
-    duration: number; // in seconds
-    position?: 'bottom' | 'top' | 'center';
-  };
-  backgroundMusic?: {
-    audioPath: string;
-    volume?: number; // 0-1
-    fadeIn?: number; // in seconds
-    fadeOut?: number; // in seconds
-  };
+  subtitles: Array<{ startTime: number; endTime: number; text: string }>;
+  cta: string; // Call-to-action text (e.g., "Clique no link da bio!")
+  musicPath?: string; // Path to background music file
+  logoPath?: string; // Optional watermark/logo
 }
 
 /**
- * VideoEditor handles video editing with FFmpeg, adding subtitles, CTAs, and background music
+ * Edit video with subtitles, CTA overlay, and background music
+ * Uses FFmpeg for processing
  */
 export class VideoEditor {
-  /**
-   * Edit a video with subtitles, CTA overlay, and background music
-   * @param config VideoEditConfig with input/output paths and edit specifications
-   * @returns Path to the edited video file
-   */
-  async editVideo(config: VideoEditConfig): Promise<string> {
-    // Validate input file exists
-    if (!fs.existsSync(config.inputPath)) {
-      throw new Error(`Input video file not found: ${config.inputPath}`);
-    }
+  private config: VideoEditorConfig;
 
-    try {
-      // Create output directory if it doesn't exist
-      const outputDir = path.dirname(config.outputPath);
-      if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, { recursive: true });
-      }
-
-      // Build FFmpeg filter chain
-      const filters = this.buildFilterChain(config);
-
-      // Construct FFmpeg command
-      let command = `ffmpeg -i "${config.inputPath}"`;
-
-      // Add audio input if background music is provided
-      if (config.backgroundMusic) {
-        command += ` -i "${config.backgroundMusic.audioPath}"`;
-      }
-
-      // Add filter chain
-      if (filters.length > 0) {
-        command += ` -filter_complex "${filters.join(',')}"`;
-      }
-
-      // Audio handling: mix original audio with background music
-      if (config.backgroundMusic) {
-        const volume = config.backgroundMusic.volume || 0.3;
-        command += ` -filter_complex "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=2[a]" -map "[a]"`;
-      }
-
-      // Output options
-      command += ` -codec:v libx264 -crf 28 -codec:a aac -b:a 128k`;
-      command += ` -y "${config.outputPath}"`;
-
-      // Execute FFmpeg command
-      execSync(command, { stdio: 'inherit' });
-
-      return config.outputPath;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new Error(`Video editing failed: ${error.message}`);
-      }
-      throw error;
-    }
+  constructor(config: VideoEditorConfig) {
+    this.config = config;
   }
 
   /**
-   * Build FFmpeg filter chain from configuration
-   * @param config VideoEditConfig
-   * @returns Array of filter strings
+   * Generate subtitles filter string for FFmpeg
+   * Format: subtitles='subtitle_file.srt':force_style='FontSize=24,FontName=Arial'
    */
-  private buildFilterChain(config: VideoEditConfig): string[] {
-    const filters: string[] = [];
+  private generateSubtitleFilter(): string {
+    const subtitleFile = '/tmp/subtitles.srt';
+    const srtContent = this.generateSRT();
+    fs.writeFileSync(subtitleFile, srtContent);
 
-    // Add subtitle overlays
-    if (config.subtitles && config.subtitles.length > 0) {
-      for (let i = 0; i < config.subtitles.length; i++) {
-        const subtitle = config.subtitles[i];
-        const fontSize = subtitle.fontSize || 24;
-        const color = subtitle.color || 'white';
+    return `subtitles='${subtitleFile}':force_style='FontSize=24,FontName=Arial,PrimaryColour=&HFFFFFF&,BorderStyle=3,Outline=2,Shadow=1'`;
+  }
 
-        const subtitleFilter = `drawtext=text='${subtitle.text}':fontsize=${fontSize}:fontcolor=${color}:x=(w-text_w)/2:y=h-50:enable='between(t,${subtitle.startTime},${subtitle.endTime})'`;
+  /**
+   * Generate SRT subtitle file
+   */
+  private generateSRT(): string {
+    return this.config.subtitles
+      .map(
+        (sub, index) =>
+          `${index + 1}\n${this.msToTimecode(sub.startTime)} --> ${this.msToTimecode(sub.endTime)}\n${sub.text}\n`
+      )
+      .join('\n');
+  }
 
-        filters.push(subtitleFilter);
+  private msToTimecode(ms: number): string {
+    const hours = Math.floor(ms / 3_600_000);
+    const minutes = Math.floor((ms % 3_600_000) / 60_000);
+    const seconds = Math.floor((ms % 60_000) / 1000);
+    const millis = ms % 1000;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')},${String(millis).padStart(3, '0')}`;
+  }
+
+  /**
+   * Generate CTA text overlay filter for FFmpeg
+   * Place text at bottom of video: "Clique no link da bio!" with semi-transparent background
+   */
+  private generateCTAFilter(): string {
+    return `drawtext=text='${this.config.cta}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:fontsize=32:fontcolor=white:boxcolor=black@0.5:boxborderw=5:x='(w-text_w)/2':y='h-text_h-20'`;
+  }
+
+  /**
+   * Edit video with all effects: subtitles + CTA + music
+   * Output format: MP4 optimized for Pinterest (1080x1080 or 1080x1350)
+   */
+  async editVideo(): Promise<string> {
+    try {
+      const subtitleFilter = this.generateSubtitleFilter();
+      const ctaFilter = this.generateCTAFilter();
+
+      // Build FFmpeg command
+      let ffmpegCmd = `ffmpeg -i "${this.config.inputVideoPath}"`;
+
+      // Video filters chain: subtitles + CTA
+      ffmpegCmd += ` -vf "[0:v]${subtitleFilter},${ctaFilter}[v]"`;
+
+      // Audio: mix video audio with background music if provided
+      if (this.config.musicPath && fs.existsSync(this.config.musicPath)) {
+        ffmpegCmd += ` -i "${this.config.musicPath}"`;
+        // Filter_complex to mix original audio with music (music at lower volume)
+        ffmpegCmd += ` -filter_complex "[0:a]volume=0.8[a0];[1:a]volume=0.3[a1];[a0][a1]amix=inputs=2:duration=first[a]"`;
+        ffmpegCmd += ` -map "[v]" -map "[a]"`;
+      } else {
+        ffmpegCmd += ` -map "[v]" -map 0:a`;
       }
+
+      // Output settings: MP4, H.264, optimized for Pinterest
+      ffmpegCmd += ` -c:v libx264 -preset fast -crf 22`;
+      ffmpegCmd += ` -c:a aac -b:a 128k`;
+      ffmpegCmd += ` -pix_fmt yuv420p`; // Ensure compatibility
+      ffmpegCmd += ` -y "${this.config.outputPath}"`;
+
+      // Execute FFmpeg
+      execSync(ffmpegCmd, { stdio: 'inherit' });
+
+      if (!fs.existsSync(this.config.outputPath)) {
+        throw new Error('Video editing failed - output file not created');
+      }
+
+      return this.config.outputPath;
+    } catch (error) {
+      throw new Error(`Video editing failed: ${error instanceof Error ? error.message : 'unknown error'}`);
     }
-
-    // Add CTA overlay
-    if (config.cta) {
-      const ctaPosition = config.cta.position || 'bottom';
-      let yPosition = 'h-50'; // default bottom
-
-      if (ctaPosition === 'top') {
-        yPosition = '20';
-      } else if (ctaPosition === 'center') {
-        yPosition = '(h-text_h)/2';
-      }
-
-      const ctaFilter = `drawtext=text='${config.cta.text}':fontsize=28:fontcolor=white:x=(w-text_w)/2:y=${yPosition}:enable='between(t,${config.cta.startTime},${config.cta.startTime + config.cta.duration})'`;
-
-      filters.push(ctaFilter);
-    }
-
-    // Add background music fading if applicable
-    if (config.backgroundMusic) {
-      const fadeIn = config.backgroundMusic.fadeIn || 0;
-      const fadeOut = config.backgroundMusic.fadeOut || 0;
-
-      if (fadeIn > 0) {
-        filters.push(`afade=t=in:st=0:d=${fadeIn}`);
-      }
-
-      if (fadeOut > 0) {
-        filters.push(`afade=t=out:st=0:d=${fadeOut}`);
-      }
-    }
-
-    return filters;
   }
 }
 
-export default VideoEditor;
+export async function editVideo(config: VideoEditorConfig): Promise<string> {
+  const editor = new VideoEditor(config);
+  return editor.editVideo();
+}
