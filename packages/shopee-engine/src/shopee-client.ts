@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import crypto from 'node:crypto';
 
 export interface ShopeeClientConfig {
@@ -48,7 +47,7 @@ export class ShopeeClient {
   /**
    * Make authenticated request to Shopee API
    */
-  private async request(endpoint: string, params: Record<string, any> = {}): Promise<any> {
+  private async request(endpoint: string): Promise<any> {
     const timestamp = Math.floor(Date.now() / 1000);
     const signature = this.generateSignature(timestamp);
 
@@ -117,22 +116,26 @@ export class ShopeeClient {
    * Get product details including vendor videos
    */
   async getProductDetails(shopId: string, itemId: string): Promise<ShopeeProduct> {
-    const data = await this.request(`/product/${shopId}/${itemId}`);
+    try {
+      const data = await this.request(`/product/${shopId}/${itemId}`);
 
-    return {
-      shopId,
-      itemId,
-      name: data.name,
-      price: data.price / 100_000,
-      commission: data.commission_rate,
-      sales: data.monthly_sales,
-      rating: data.rating_star,
-      videoUrls: data.video_list?.map((v: any) => v.video_url) || [],
-      category: data.category_name,
-      shopName: data.shop_name,
-      shopeeLink: data.shopee_url,
-      affiliateLink: `${data.shopee_url}?aff_id=${this.config.affiliateId}`,
-    };
+      return {
+        shopId,
+        itemId,
+        name: data.name,
+        price: data.price / 100_000,
+        commission: data.commission_rate,
+        sales: data.monthly_sales,
+        rating: data.rating_star,
+        videoUrls: data.video_list?.map((v: any) => v.video_url) || [],
+        category: data.category_name,
+        shopName: data.shop_name,
+        shopeeLink: data.shopee_url,
+        affiliateLink: `${data.shopee_url}?aff_id=${this.config.affiliateId}`,
+      };
+    } catch (error) {
+      throw new Error(`Failed to get product details: ${error instanceof Error ? error.message : 'unknown error'}`);
+    }
   }
 }
 
