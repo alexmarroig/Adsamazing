@@ -1,94 +1,84 @@
-import OpenAI from 'openai';
-import * as fs from 'fs';
-import * as path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
+import { OpenAI } from 'openai';
 
-interface TranscriptionResult {
+export interface TranscriberConfig {
+  openaiApiKey: string;
+}
+
+export interface Subtitle {
+  startTime: number; // milliseconds
+  endTime: number;
   text: string;
-  language: string;
-  duration: number;
 }
 
 /**
- * VideoTranscriber handles video transcription using OpenAI's Whisper API
+ * Transcribe video to text using OpenAI Whisper
+ * Generates subtitle format (SRT/VTT compatible)
  */
 export class VideoTranscriber {
   private openai: OpenAI;
 
-  constructor(apiKey?: string) {
+  constructor(config: TranscriberConfig) {
     this.openai = new OpenAI({
-      apiKey: apiKey || process.env.OPENAI_API_KEY,
+      apiKey: config.openaiApiKey,
     });
   }
 
   /**
-   * Transcribe a video file
-   * @param videoPath Path to the video file
-   * @returns TranscriptionResult containing the transcription text and metadata
+   * Extract audio from video file (requires ffmpeg)
+   * For now, assume audio file is provided or extracted separately
    */
-  async transcribe(videoPath: string): Promise<TranscriptionResult> {
-    // Validate file exists
-    if (!fs.existsSync(videoPath)) {
-      throw new Error(`Video file not found: ${videoPath}`);
-    }
-
-    const fileStats = fs.statSync(videoPath);
-    if (fileStats.size === 0) {
-      throw new Error(`Video file is empty: ${videoPath}`);
-    }
-
-    // OpenAI has a 25MB limit for direct uploads
-    const maxSize = 25 * 1024 * 1024;
-    if (fileStats.size > maxSize) {
-      throw new Error(
-        `Video file is too large (${(fileStats.size / (1024 * 1024)).toFixed(2)}MB). Maximum is 25MB.`
-      );
-    }
-
+  async transcribeVideo(audioPath: string): Promise<Subtitle[]> {
     try {
-      // Create readable stream from file
-      const audioStream = fs.createReadStream(videoPath);
+      // Read audio file
+      const audioBuffer = fs.readFileSync(audioPath);
 
-      // Call Whisper API with the video file
-      const transcription = await this.openai.audio.transcriptions.create({
-        file: audioStream as any,
+      // Call Whisper API
+      const transcript = await this.openai.audio.transcriptions.create({
+        file: new File([audioBuffer], path.basename(audioPath), { type: 'audio/wav' }),
         model: 'whisper-1',
-        language: 'en', // Default to English
-        response_format: 'verbose_json',
+        language: 'pt', // Portuguese
+        timestamp_granularities: ['segment'],
       });
 
-      return {
-        text: transcription.text,
-        language: transcription.language || 'en',
-        duration: transcription.duration || 0,
-      };
+      // Parse timestamps and convert to subtitle format
+      // Whisper returns: { text: string, segments: [{id, seek, start, end, text}] }
+      const subtitles: Subtitle[] = transcript.segments?.map((segment: any) => ({
+        startTime: Math.floor(segment.start * 1000),
+        endTime: Math.floor(segment.end * 1000),
+        text: segment.text.trim(),
+      })) || [];
+
+      return subtitles;
     } catch (error) {
-      if (error instanceof Error) {
-        throw new Error(`Transcription failed: ${error.message}`);
-      }
-      throw error;
+      throw new Error(`Transcription failed: ${error instanceof Error ? error.message : 'unknown error'}`);
     }
   }
 
   /**
-   * Transcribe multiple video files
-   * @param videoPaths Array of paths to video files
-   * @returns Array of TranscriptionResult objects
+   * Convert subtitles to SRT format for FFmpeg
    */
-  async transcribeBatch(videoPaths: string[]): Promise<TranscriptionResult[]> {
-    const results: TranscriptionResult[] = [];
+  subtitlesToSRT(subtitles: Subtitle[]): string {
+    return subtitles
+      .map(
+        (sub, index) =>
+          `${index + 1}\n${this.formatTime(sub.startTime)} --> ${this.formatTime(sub.endTime)}\n${sub.text}\n`
+      )
+      .join('\n');
+  }
 
-    for (const videoPath of videoPaths) {
-      try {
-        const result = await this.transcribe(videoPath);
-        results.push(result);
-      } catch (error) {
-        console.error(`Failed to transcribe ${videoPath}:`, error);
-        // Continue with next file instead of failing entirely
-      }
-    }
+  private formatTime(ms: number): string {
+    const hours = Math.floor(ms / 3_600_000);
+    const minutes = Math.floor((ms % 3_600_000) / 60_000);
+    const seconds = Math.floor((ms % 60_000) / 1000);
+    const milliseconds = ms % 1000;
 
-    return results;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')},${String(milliseconds).padStart(3, '0')}`;
   }
 }
 
-export default VideoTranscriber;
+export async function transcribeVideo(audioPath: string, apiKey: string): Promise<Subtitle[]> {
+  const transcriber = new VideoTranscriber({ openaiApiKey: apiKey });
+  return transcriber.transcribeVideo(audioPath);
+}
