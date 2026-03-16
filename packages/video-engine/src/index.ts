@@ -1,74 +1,40 @@
-/**
- * Video Engine Module
- * Provides complete video processing pipeline:
- * - Transcription via OpenAI Whisper
- * - Video editing with FFmpeg (subtitles, CTAs, music)
- * - Music management for background tracks
- */
+export { VideoTranscriber, transcribeVideo } from './transcriber.js';
+export type { TranscriberConfig, Subtitle } from './transcriber.js';
 
-export { VideoTranscriber } from './transcriber.js';
-export type { TranscriptionResult } from './transcriber.js';
+export { VideoEditor, editVideo } from './editor.js';
+export type { VideoEditorConfig } from './editor.js';
 
-export { VideoEditor } from './editor.js';
-export type { VideoEditConfig } from './editor.js';
-
-export { MusicManager } from './music-manager.js';
-export type { MusicTrack } from './music-manager.js';
+export { MusicManager, selectMusicForProduct } from './music-manager.js';
+export type { AnimatedMusic } from './music-manager.js';
 
 /**
- * VideoProcessor orchestrates the complete video pipeline
+ * Complete video pipeline: download → transcribe → edit
  */
-export class VideoProcessor {
-  constructor(
-    private transcriber: any,
-    private editor: any,
-    private musicManager: any
-  ) {}
-
-  /**
-   * Process a video end-to-end: transcribe, edit, and add music
-   */
-  async processVideo(videoPath: string, outputPath: string): Promise<string> {
-    // Step 1: Transcribe
-    const transcription = await this.transcriber.transcribe(videoPath);
-
-    // Step 2: Select background music
-    const musicTrack = this.musicManager.getRandomTrack({
-      mood: 'uplifting',
-      maxDuration: 120,
-    });
-
-    // Step 3: Edit video with transcription and music
-    if (musicTrack) {
-      const editedVideo = await this.editor.editVideo({
-        inputPath: videoPath,
-        outputPath,
-        subtitles: [
-          {
-            text: transcription.text,
-            startTime: 0,
-            endTime: transcription.duration,
-            fontSize: 24,
-            color: 'white',
-          },
-        ],
-        backgroundMusic: {
-          audioPath: musicTrack.filePath,
-          volume: 0.3,
-          fadeIn: 1,
-          fadeOut: 1,
-        },
-      });
-
-      return editedVideo;
-    }
-
-    // Fallback: edit without music
-    return await this.editor.editVideo({
-      inputPath: videoPath,
-      outputPath,
-    });
+export async function processVideoForPinterest(
+  videoPath: string,
+  options: {
+    openaiApiKey: string;
+    outputPath: string;
+    cta: string;
+    musicPath?: string;
   }
-}
+): Promise<string> {
+  const { VideoTranscriber } = await import('./transcriber.js');
+  const { VideoEditor } = await import('./editor.js');
 
-export default VideoProcessor;
+  // Step 1: Transcribe
+  const transcriber = new VideoTranscriber({ openaiApiKey: options.openaiApiKey });
+  const subtitles = await transcriber.transcribeVideo(videoPath);
+
+  // Step 2: Edit with subtitles + CTA + music
+  const editor = new VideoEditor({
+    inputVideoPath: videoPath,
+    outputPath: options.outputPath,
+    subtitles,
+    cta: options.cta,
+    musicPath: options.musicPath,
+  });
+  const editedPath = await editor.editVideo();
+
+  return editedPath;
+}
