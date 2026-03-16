@@ -28,6 +28,13 @@ const envSchema = z.object({
   GOOGLE_ADS_LOGIN_CUSTOMER_ID: z.string().optional(),
 
   ENABLE_SCRAPING_CONNECTOR: z.coerce.boolean().default(false),
+  CLICKBANK_API_KEY: z.string().optional(),
+  CLICKBANK_AFFILIATE_ID: z.string().optional(),
+
+  SHOPEE_APP_ID: z.string().optional(),
+  SHOPEE_SECRET_KEY: z.string().optional(),
+  SHOPEE_AFFILIATE_ID: z.string().optional(),
+  SHOPEE_API_BASE_URL: z.string().url().default('https://partner.shopeemobile.com/api/v2'),
 });
 
 export const env = envSchema.parse(process.env);
