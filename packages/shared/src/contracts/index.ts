@@ -119,3 +119,23 @@ export const apiEnvelopeSchema = z.object({
     .optional(),
 });
 
+// ClickBank API Contracts
+export const clickBankProductSchema = z.object({
+  pid: z.string(),
+  title: z.string(),
+  category: z.string().optional(),
+  price: z.coerce.number().nonnegative(),
+  commission: z.coerce.number().min(0).max(100), // percentage
+  gravity: z.coerce.number().nonnegative().default(0), // popularity indicator
+  image: z.string().url().optional(),
+});
+
+export const clickBankSearchResponseSchema = z.object({
+  products: z.array(clickBankProductSchema),
+  pageNumber: z.number().int(),
+  pageSize: z.number().int(),
+  totalResults: z.number().int(),
+});
+
+export type ClickBankProduct = z.infer<typeof clickBankProductSchema>;
+export type ClickBankSearchResponse = z.infer<typeof clickBankSearchResponseSchema>;
