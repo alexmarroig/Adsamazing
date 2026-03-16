@@ -139,3 +139,40 @@ export const clickBankSearchResponseSchema = z.object({
 
 export type ClickBankProduct = z.infer<typeof clickBankProductSchema>;
 export type ClickBankSearchResponse = z.infer<typeof clickBankSearchResponseSchema>;
+
+// Shopee API Contracts
+export const shopeeProductSchema = z.object({
+  shopId: z.string(),
+  itemId: z.string(),
+  name: z.string().min(1),
+  price: z.number().nonnegative(),
+  commission: z.number().min(0).max(100), // percentage
+  sales: z.number().int().nonnegative(),
+  rating: z.number().min(0).max(5),
+  videoUrls: z.array(z.string().url()).optional(),
+  category: z.string(),
+  shopName: z.string(),
+  shopeeLink: z.string().url(),
+  affiliateLink: z.string().url(),
+});
+
+export const shopeeVideoContentSchema = z.object({
+  productId: z.string().uuid(),
+  shopeeProductId: z.string(),
+  videoPath: z.string(),
+  transcription: z.string(),
+  editedVideoPath: z.string().optional(),
+  pinterestMetadata: z.object({
+    title: z.string(),
+    description: z.string(),
+    hashtags: z.array(z.string()),
+    affiliateLink: z.string().url(),
+    thumbnailPath: z.string().optional(),
+  }).optional(),
+  status: z.enum(['downloaded', 'transcribed', 'edited', 'ready_for_pinterest']),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+export type ShopeeProduct = z.infer<typeof shopeeProductSchema>;
+export type ShopeeVideoContent = z.infer<typeof shopeeVideoContentSchema>;
