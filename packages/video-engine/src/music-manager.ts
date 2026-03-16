@@ -1,150 +1,73 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
-interface MusicTrack {
-  id: string;
+export interface AnimatedMusic {
   name: string;
-  filePath: string;
-  duration: number; // in seconds
-  genre: string;
-  mood: 'energetic' | 'calm' | 'uplifting' | 'mysterious';
+  path: string;
+  duration: number; // seconds
+  genre: 'upbeat' | 'electronic' | 'ambient';
   tempo: number; // BPM
 }
 
 /**
- * MusicManager handles music selection and management for video backgrounds
+ * Manage animated background music for video content
+ * Stores local music files or fetches from royalty-free APIs
  */
 export class MusicManager {
-  private musicLibrary: Map<string, MusicTrack> = new Map();
-  private musicDirectory: string;
-
-  constructor(musicDirectory: string) {
-    this.musicDirectory = musicDirectory;
-    this.loadMusicLibrary();
-  }
+  private musicLibrary: AnimatedMusic[] = [
+    {
+      name: 'upbeat-tech-1',
+      path: '/assets/music/upbeat-tech-1.mp3',
+      duration: 30,
+      genre: 'upbeat',
+      tempo: 128,
+    },
+    {
+      name: 'electronic-energetic',
+      path: '/assets/music/electronic-energetic.mp3',
+      duration: 30,
+      genre: 'electronic',
+      tempo: 140,
+    },
+    {
+      name: 'ambient-futuristic',
+      path: '/assets/music/ambient-futuristic.mp3',
+      duration: 30,
+      genre: 'ambient',
+      tempo: 90,
+    },
+  ];
 
   /**
-   * Load music library from directory
+   * Get appropriate music for video genre
+   * For tech products, prefer upbeat/electronic
    */
-  private loadMusicLibrary(): void {
-    if (!fs.existsSync(this.musicDirectory)) {
-      console.warn(`Music directory not found: ${this.musicDirectory}`);
-      return;
+  getMusic(genre: 'upbeat' | 'electronic' = 'electronic'): AnimatedMusic {
+    const matches = this.musicLibrary.filter((m) => m.genre === genre);
+    if (matches.length === 0) {
+      return this.musicLibrary[0]; // Fallback
     }
-
-    const files = fs.readdirSync(this.musicDirectory);
-
-    for (const file of files) {
-      if (['.mp3', '.wav', '.aac', '.flac'].includes(path.extname(file).toLowerCase())) {
-        const trackId = path.basename(file, path.extname(file));
-        const metadata = this.parseTrackMetadata(trackId);
-
-        const track: MusicTrack = {
-          id: trackId,
-          name: metadata.name,
-          filePath: path.join(this.musicDirectory, file),
-          duration: metadata.duration || 60,
-          genre: metadata.genre || 'general',
-          mood: metadata.mood || 'calm',
-          tempo: metadata.tempo || 120,
-        };
-
-        this.musicLibrary.set(trackId, track);
-      }
-    }
+    // Return random from matches
+    return matches[Math.floor(Math.random() * matches.length)];
   }
 
   /**
-   * Parse track metadata from filename or metadata file
+   * List all available music
    */
-  private parseTrackMetadata(trackId: string): Partial<MusicTrack> {
-    const metadataPath = path.join(this.musicDirectory, `${trackId}.json`);
-
-    if (fs.existsSync(metadataPath)) {
-      try {
-        const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
-        return metadata;
-      } catch (error) {
-        console.warn(`Failed to parse metadata for ${trackId}:`, error);
-      }
-    }
-
-    // Fallback: parse from filename (e.g., "uplifting-120bpm-calm.mp3")
-    const parts = trackId.split('-');
-    return {
-      name: trackId,
-      mood: (parts[0] as any) || 'calm',
-      tempo: parseInt(parts[1]) || 120,
-    };
+  listMusic(): AnimatedMusic[] {
+    return this.musicLibrary;
   }
 
   /**
-   * Get all available music tracks
+   * Validate music file exists
    */
-  getAllTracks(): MusicTrack[] {
-    return Array.from(this.musicLibrary.values());
-  }
-
-  /**
-   * Get a random track matching criteria
-   */
-  getRandomTrack(criteria?: { mood?: string; genre?: string; maxDuration?: number }): MusicTrack | null {
-    let tracks = this.getAllTracks();
-
-    if (criteria?.mood) {
-      tracks = tracks.filter((t) => t.mood === criteria.mood);
-    }
-
-    if (criteria?.genre) {
-      tracks = tracks.filter((t) => t.genre === criteria.genre);
-    }
-
-    if (criteria?.maxDuration) {
-      tracks = tracks.filter((t) => t.duration <= criteria.maxDuration);
-    }
-
-    if (tracks.length === 0) {
-      return null;
-    }
-
-    return tracks[Math.floor(Math.random() * tracks.length)];
-  }
-
-  /**
-   * Get a specific track by ID
-   */
-  getTrack(trackId: string): MusicTrack | null {
-    return this.musicLibrary.get(trackId) || null;
-  }
-
-  /**
-   * Find tracks matching search criteria
-   */
-  searchTracks(query: string): MusicTrack[] {
-    const lowerQuery = query.toLowerCase();
-
-    return Array.from(this.musicLibrary.values()).filter((track) => {
-      return (
-        track.name.toLowerCase().includes(lowerQuery) ||
-        track.genre.toLowerCase().includes(lowerQuery) ||
-        track.mood.toLowerCase().includes(lowerQuery)
-      );
-    });
-  }
-
-  /**
-   * Add a music track to the library
-   */
-  addTrack(track: MusicTrack): void {
-    this.musicLibrary.set(track.id, track);
-  }
-
-  /**
-   * Remove a track from the library
-   */
-  removeTrack(trackId: string): boolean {
-    return this.musicLibrary.delete(trackId);
+  validateMusicPath(musicPath: string): boolean {
+    return fs.existsSync(musicPath);
   }
 }
 
-export default MusicManager;
+export async function selectMusicForProduct(productCategory: string): Promise<string> {
+  const manager = new MusicManager();
+  const music = manager.getMusic('electronic'); // Default for tech products
+  return music.path;
+}
