@@ -9,6 +9,7 @@ import { scrapeProductPage } from '@ads/scraping-engine';
 import { jobPayloadSchemas, queueNames } from '@ads/shared';
 
 import { env } from './env.js';
+import { processShopeeVideo } from './handlers/shopee-video-pipeline.js';
 
 const logger = pino({
   name: 'ads-worker',
@@ -398,6 +399,13 @@ const workers: Worker[] = [
       }
     },
     { connection },
+  ),
+  new Worker(
+    'shopee_video_processing',
+    async (job) => {
+      return processShopeeVideo(job.data, env.OPENAI_API_KEY);
+    },
+    { connection }
   ),
 ];
 
