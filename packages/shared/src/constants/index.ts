@@ -6,6 +6,7 @@ export const queueNames = {
   keywordIntel: 'keyword_intel',
   landingGenerate: 'landing_generate',
   campaignBuild: 'campaign_build',
+  campaignPublish: 'campaign_publish',
   campaignOptimize: 'campaign_optimize',
   analyticsRollup: 'analytics_rollup',
   affiliateReconcile: 'affiliate_reconcile',
@@ -27,4 +28,3 @@ export const utmSchema = z.object({
   term: z.string().optional(),
   content: z.string().optional(),
 });
-
