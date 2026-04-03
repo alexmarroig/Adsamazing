@@ -104,3 +104,142 @@ export async function mutateGoogleAds(
   return response.json();
 }
 
+/**
+ * Operation Builders for Google Ads v18
+ */
+
+export function buildCampaignOperation(campaign: {
+  name: string;
+  advertisingChannelType: string;
+  status: string;
+  manualCpc?: Record<string, any>;
+  dailyBudgetMicros: string | number;
+}) {
+  return {
+    campaignOperation: {
+      create: {
+        name: campaign.name,
+        advertisingChannelType: campaign.advertisingChannelType,
+        status: campaign.status,
+        campaignBudget: `customers/${campaign.name}/campaignBudgets/-1`, // Temporary ID placeholder
+        manualCpc: campaign.manualCpc ?? {},
+        networkSettings: {
+          targetGoogleSearch: true,
+          targetSearchNetwork: true,
+          targetContentNetwork: false,
+        },
+      },
+    },
+  };
+}
+
+export function buildBudgetOperation(amountMicros: string | number) {
+  return {
+    campaignBudgetOperation: {
+      create: {
+        name: `Budget ${Date.now()}`,
+        amountMicros: amountMicros.toString(),
+        deliveryMethod: 'STANDARD',
+      },
+    },
+  };
+}
+
+export function buildAdGroupOperation(campaignResourceName: string, name: string) {
+  return {
+    adGroupOperation: {
+      create: {
+        name,
+        status: 'ENABLED',
+        campaign: campaignResourceName,
+        type: 'SEARCH_STANDARD',
+      },
+    },
+  };
+}
+
+export function buildKeywordOperation(adGroupResourceName: string, text: string, matchType: 'EXACT' | 'PHRASE' | 'BROAD') {
+  return {
+    adGroupKeywordOperation: {
+      create: {
+        adGroup: adGroupResourceName,
+        status: 'ENABLED',
+        keyword: {
+          text,
+          matchType,
+        },
+      },
+    },
+  };
+}
+
+export function buildAdOperation(adGroupResourceName: string, ad: {
+  headlines: string[];
+  descriptions: string[];
+  finalUrl: string;
+}) {
+  return {
+    adGroupAdOperation: {
+      create: {
+        adGroup: adGroupResourceName,
+        status: 'ENABLED',
+        ad: {
+          finalUrls: [ad.finalUrl],
+          responsiveSearchAd: {
+            headlines: ad.headlines.map(text => ({ text })),
+            descriptions: ad.descriptions.map(text => ({ text })),
+          },
+        },
+      },
+    },
+  };
+}
+
+export function buildConversionActionOperation(name: string) {
+  return {
+    conversionActionOperation: {
+      create: {
+        name,
+        type: 'WEBPAGE',
+        category: 'PURCHASE',
+        status: 'ENABLED',
+        viewThroughLookbackWindowDays: 30,
+        clickThroughLookbackWindowDays: 90,
+        eventContext: 'GOOGLE_ADS_CONVERSION',
+      },
+    },
+  };
+}
+
+export async function getCampaignMetrics(accessToken: string, customerId: string, campaignId: string, loginCustomerId?: string) {
+  const query = `
+    SELECT
+      campaign.id,
+      metrics.clicks,
+      metrics.conversions,
+      metrics.cost_micros,
+      metrics.conversions_value,
+      metrics.ctr,
+      metrics.average_cpc
+    FROM campaign
+    WHERE campaign.id = '${campaignId}'
+    AND segments.date DURING LAST_30_DAYS
+  `;
+  return searchGoogleAds(accessToken, customerId, query, loginCustomerId);
+}
+
+export async function getKeywordMetrics(accessToken: string, customerId: string, campaignId: string, loginCustomerId?: string) {
+  const query = `
+    SELECT
+      ad_group_keyword_view.resource_name,
+      keyword_view.resource_name,
+      metrics.clicks,
+      metrics.conversions,
+      metrics.cost_micros,
+      metrics.conversions_value
+    FROM keyword_view
+    WHERE campaign.id = '${campaignId}'
+    AND segments.date DURING LAST_30_DAYS
+  `;
+  return searchGoogleAds(accessToken, customerId, query, loginCustomerId);
+}

@@ -193,7 +193,35 @@ export const campaignsRoutes: FastifyPluginAsync = async (app) => {
       return sendError(reply, request, 404, { code: 'CAMPAIGN_NOT_FOUND', message: 'Campanha não encontrada.' });
     }
 
-    // Google publish hooks live in worker/job pipeline; here we mark intent and publish state.
+    if (parsed.data.publishToGoogle) {
+      const idempotencyKey = `launch-${campaign.id}-${Date.now()}`;
+      const job = await app.queues[queueNames.campaignPublish].add(
+        'campaign-publish',
+        {
+          userId: request.authUser.userId,
+          campaignId: campaign.id,
+          idempotencyKey,
+        },
+        {
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5_000 },
+        }
+      );
+
+      await prisma.job.create({
+        data: {
+          userId: request.authUser.userId,
+          queueName: queueNames.campaignPublish,
+          jobName: 'campaign-publish',
+          status: 'QUEUED',
+          idempotencyKey,
+          payload: { campaignId: campaign.id } as Prisma.InputJsonValue,
+        }
+      });
+
+      return sendOk(reply, request, { jobId: job.id, status: 'PUBLISHING_PENDING' });
+    }
+
     await prisma.campaign.update({
       where: { id: campaign.id },
       data: { status: 'PUBLISHED' },
@@ -206,4 +234,3 @@ export const campaignsRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 };
-

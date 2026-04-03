@@ -71,6 +71,10 @@ export const jobPayloadSchemas = {
     objective: z.string().default('conversions'),
     dailyBudgetMicros: z.coerce.bigint().optional(),
   }),
+  [queueNames.campaignPublish]: z.object({
+    userId: z.string().uuid(),
+    campaignId: z.string().uuid(),
+  }),
   [queueNames.campaignOptimize]: z.object({
     userId: z.string().uuid(),
     campaignId: z.string().uuid(),
@@ -94,6 +98,7 @@ export const queueEnqueueBodySchema = z.object({
     queueNames.keywordIntel,
     queueNames.landingGenerate,
     queueNames.campaignBuild,
+    queueNames.campaignPublish,
     queueNames.campaignOptimize,
     queueNames.analyticsRollup,
     queueNames.affiliateReconcile,
@@ -118,4 +123,3 @@ export const apiEnvelopeSchema = z.object({
     })
     .optional(),
 });
-
