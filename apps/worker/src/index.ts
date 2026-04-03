@@ -4,6 +4,13 @@ import {
   buildAdGroupStructure,
   createAdExtensions
 } from '@ads/ads-engine';
+import {
+  fetchAffiliateNetworkProducts,
+  rankProducts
+} from '@ads/affiliate-engine';
+import {
+  scrapeProductPage
+} from '@ads/scraping-engine';
 import { generateAdCopy, generateLandingBlocks, embedKeywords } from '@ads/ai-engine';
 import {
   queueNames,
@@ -71,11 +78,102 @@ const workers = [
       const input = jobPayloadSchemas[queueNames.productDiscovery].parse(job.data);
       await updateJobStatusByPayload(job.data, 'RUNNING');
       try {
-        const results = [{ externalId: 'p1', title: 'Product 1' }];
-        await updateJobStatusByPayload(job.data, 'SUCCEEDED', { count: results.length });
-        return { count: results.length };
+        const networkSlug = input.network ?? 'hotmart';
+        const products = await fetchAffiliateNetworkProducts(networkSlug, input.query);
+        const ranked = rankProducts(products);
+
+        const network = await prisma.affiliateNetwork.upsert({
+          where: { slug: networkSlug },
+          update: { isEnabled: true },
+          create: { slug: networkSlug, name: networkSlug.toUpperCase() },
+        });
+
+        for (const p of ranked) {
+          const createdProduct = await prisma.product.upsert({
+            where: {
+              userId_affiliateNetworkId_externalId: {
+                userId: input.userId,
+                affiliateNetworkId: network.id,
+                externalId: p.externalId,
+              },
+            },
+            update: {
+              title: p.title,
+              category: p.category,
+              sourceUrl: p.sourceUrl,
+              commissionPct: p.commissionPct,
+            },
+            create: {
+              userId: input.userId,
+              affiliateNetworkId: network.id,
+              externalId: p.externalId,
+              title: p.title,
+              category: p.category,
+              sourceUrl: p.sourceUrl,
+              commissionPct: p.commissionPct,
+            },
+          });
+
+          await prisma.productSignal.upsert({
+            where: { productId: createdProduct.id },
+            update: {
+              searchDemand: p.searchDemand,
+              competitionLevel: p.competitionLevel,
+              estimatedCpc: p.estimatedCpc,
+              conversionSignal: p.conversionSignal,
+              rankingScore: p.rankingScore,
+            },
+            create: {
+              productId: createdProduct.id,
+              searchDemand: p.searchDemand ?? 0,
+              competitionLevel: p.competitionLevel ?? 0,
+              estimatedCpc: p.estimatedCpc ?? 0,
+              conversionSignal: p.conversionSignal ?? 0,
+              rankingScore: p.rankingScore,
+            },
+          });
+
+          // Trigger scraping for the best product if URL is available
+          if (p === ranked[0] && p.sourceUrl) {
+            await queues[queueNames.productScrape].add('scrape-product', {
+              userId: input.userId,
+              productId: createdProduct.id,
+              url: p.sourceUrl,
+            });
+          }
+        }
+
+        await updateJobStatusByPayload(job.data, 'SUCCEEDED', { count: ranked.length });
+        return { count: ranked.length };
       } catch (error) {
         await withDeadLetter(queueNames.productDiscovery, job.id?.toString(), job.data, error);
+        await updateJobStatusByPayload(job.data, 'FAILED', undefined, error instanceof Error ? error.message : 'unknown error');
+        throw error;
+      }
+    },
+    { connection },
+  ),
+  new Worker(
+    queueNames.productScrape,
+    async (job) => {
+      const input = jobPayloadSchemas[queueNames.productScrape].parse(job.data);
+      await updateJobStatusByPayload(job.data, 'RUNNING');
+      try {
+        const scraped = await scrapeProductPage(input.url);
+
+        await prisma.product.update({
+          where: { id: input.productId },
+          data: {
+            // Store description in a way that AI can use later,
+            // even if we don't have a dedicated field we can use metadata or title extension
+            title: scraped.title || undefined,
+          }
+        });
+
+        await updateJobStatusByPayload(job.data, 'SUCCEEDED', { scraped: !!scraped.title });
+        return { scraped: !!scraped.title };
+      } catch (error) {
+        await withDeadLetter(queueNames.productScrape, job.id?.toString(), job.data, error);
         await updateJobStatusByPayload(job.data, 'FAILED', undefined, error instanceof Error ? error.message : 'unknown error');
         throw error;
       }
@@ -282,6 +380,7 @@ const workers = [
         await updateJobStatusByPayload(job.data, 'SUCCEEDED', { landingPageId: landing.id });
         return { landingPageId: landing.id };
       } catch (error) {
+        await withDeadLetter(queueNames.landingGenerate, job.id?.toString(), job.data, error);
         await updateJobStatusByPayload(job.data, 'FAILED', undefined, error instanceof Error ? error.message : 'unknown error');
         throw error;
       }
@@ -294,18 +393,71 @@ const workers = [
       const input = jobPayloadSchemas[queueNames.campaignBuild].parse(job.data);
       await updateJobStatusByPayload(job.data, 'RUNNING');
       try {
-        const product = await prisma.product.findFirst({ where: { id: input.productId, userId: input.userId } });
+        const product = await prisma.product.findFirst({
+          where: { id: input.productId, userId: input.userId },
+          include: { landingPages: true }
+        });
         if (!product) throw new Error('Product not found');
-        const adCopy = await generateAdCopy({ apiKey: env.OPENAI_API_KEY, niche: product.category ?? 'affiliate marketing', audience: 'buyers', intent: 'commercial', productName: product.title });
+
+        const adCopy = await generateAdCopy({
+          apiKey: env.OPENAI_API_KEY,
+          niche: product.category ?? 'affiliate marketing',
+          audience: 'buyers',
+          intent: 'commercial',
+          productName: product.title
+        });
+
         const campaign = await prisma.campaign.create({
-          data: { userId: input.userId, adAccountId: input.adAccountId, productId: input.productId, name: `${product.title} Auto Campaign`, objective: input.objective, dailyBudgetMicros: input.dailyBudgetMicros || BigInt(1000000) },
+          data: {
+            userId: input.userId,
+            adAccountId: input.adAccountId,
+            productId: input.productId,
+            name: `${product.title} Auto Campaign`,
+            objective: input.objective,
+            dailyBudgetMicros: input.dailyBudgetMicros || BigInt(1000000)
+          },
         });
+
+        const landingUrl = product.landingPages[0]
+          ? `${process.env.WEB_URL || 'https://autopilot.ads'}/l/${product.landingPages[0].slug}`
+          : `https://example.com/l/${product.id}`;
+
         await prisma.ad.create({
-          data: { userId: input.userId, campaignId: campaign.id, headline1: adCopy.headlines[0] ?? product.title, description1: adCopy.descriptions[0] ?? `Compre ${product.title}`, finalUrl: `https://example.com/l/${product.id}` },
+          data: {
+            userId: input.userId,
+            campaignId: campaign.id,
+            headline1: adCopy.headlines[0] ?? product.title,
+            headline2: adCopy.headlines[1],
+            headline3: adCopy.headlines[2],
+            description1: adCopy.descriptions[0] ?? `Compre ${product.title}`,
+            description2: adCopy.descriptions[1],
+            finalUrl: landingUrl
+          },
         });
+
+        // Generate base keywords automatically
+        const baseKeywords = [
+          `${product.title} comprar`,
+          `${product.title} preço`,
+          `melhor ${product.category || 'oferta'}`,
+        ];
+
+        const adGroups = buildAdGroupStructure(baseKeywords);
+        for (const group of adGroups) {
+          const createdGroup = await prisma.adGroup.create({
+            data: { campaignId: campaign.id, userId: input.userId, name: group.name },
+          });
+          for (const k of group.keywords) {
+            await prisma.keyword.create({
+              data: { userId: input.userId, campaignId: campaign.id, adGroupId: createdGroup.id, text: k, intent: 'buyer' }
+            });
+          }
+        }
+
         await updateJobStatusByPayload(job.data, 'SUCCEEDED', { campaignId: campaign.id });
         return { campaignId: campaign.id };
       } catch (error) {
+        await withDeadLetter(queueNames.campaignBuild, job.id?.toString(), job.data, error);
         await updateJobStatusByPayload(job.data, 'FAILED', undefined, error instanceof Error ? error.message : 'unknown error');
         throw error;
       }
